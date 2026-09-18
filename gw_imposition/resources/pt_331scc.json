@@ -1,0 +1,179 @@
+{
+  "schema_version": 2,
+  "id": "pt_331scc",
+  "version": "1.0.1",
+  "name": "PT 331SCC",
+  "approval_state": "unverified",
+  "stocks": [
+    {
+      "id": "12x18",
+      "width_um": 304800,
+      "height_um": 457200
+    },
+    {
+      "id": "13x19",
+      "width_um": 330200,
+      "height_um": 482600,
+      "preferred": true
+    }
+  ],
+  "press_margins": {
+    "left_um": 6350,
+    "right_um": 6350,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "finisher_margins": {
+    "left_um": 0,
+    "right_um": 0,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "feed_edges": [
+    "short"
+  ],
+  "allow_rotation": true,
+  "minimum_gutter_um": 5000,
+  "maximum_gutter_um": 15000,
+  "gutter_increment_um": 1,
+  "max_columns": 3,
+  "max_rows": 30,
+  "allow_shared_cut": true,
+  "capabilities": {
+    "min_sheet_width_um": 208280,
+    "min_sheet_height_um": 208280,
+    "max_sheet_width_um": 330200,
+    "max_sheet_height_um": 660400,
+    "min_finished_width_um": 49784,
+    "min_finished_height_um": 44958,
+    "max_slitters": 6,
+    "crease": true,
+    "cross_perf": true,
+    "rotary_perf": false,
+    "strike_perf": false,
+    "gutter_mode": "fixed",
+    "strike_optional": false,
+    "max_side_trim_um": 3000,
+    "barcode_reader": false
+  },
+  "source_document": "PT_SCC_Series_Specification_Comparison.xlsx | SCC Comparison!C5:C27",
+  "source_sha256": "5149bb3e323f0b5c8c887f76a7652cbf52089ff622e3dee0455c1a8a43949daa",
+  "specifications": [
+    {
+      "label": "Feed Capacity",
+      "value": "Hand-fed",
+      "source_cell": "SCC Comparison!C6"
+    },
+    {
+      "label": "Feeder Type",
+      "value": "Hand-fed",
+      "source_cell": "SCC Comparison!C7"
+    },
+    {
+      "label": "Input Paper Weight",
+      "value": "150–350 gsm",
+      "source_cell": "SCC Comparison!C8"
+    },
+    {
+      "label": "Input Paper Size",
+      "value": "8.2\" × 8.2\"\n(20.82 × 20.82 cm)\n13\" × 26\"\n(33.02 × 66.04 cm)",
+      "source_cell": "SCC Comparison!C9"
+    },
+    {
+      "label": "Minimum Finished Cut Size",
+      "value": "1.96\" × 1.77\"",
+      "source_cell": "SCC Comparison!C10"
+    },
+    {
+      "label": "Speed",
+      "value": "Up to 20 sheets per minute",
+      "source_cell": "SCC Comparison!C11"
+    },
+    {
+      "label": "Crease Depth Adjustment",
+      "value": "Infinite manual adjust",
+      "source_cell": "SCC Comparison!C12"
+    },
+    {
+      "label": "Crease Width Options",
+      "value": "1 mm",
+      "source_cell": "SCC Comparison!C13"
+    },
+    {
+      "label": "Crease Direction",
+      "value": "Up or down",
+      "source_cell": "SCC Comparison!C14"
+    },
+    {
+      "label": "Number of Slitters",
+      "value": "6, fixed gutters",
+      "source_cell": "SCC Comparison!C15"
+    },
+    {
+      "label": "Integrated Conveyor Outfeed Option",
+      "value": "No",
+      "source_cell": "SCC Comparison!C16"
+    },
+    {
+      "label": "Cut Mark Image Shift Compensation",
+      "value": "Yes, lead edge only",
+      "source_cell": "SCC Comparison!C17"
+    },
+    {
+      "label": "Linear Perforating",
+      "value": "No",
+      "source_cell": "SCC Comparison!C18"
+    },
+    {
+      "label": "Strike Perf Option",
+      "value": "No",
+      "source_cell": "SCC Comparison!C19"
+    },
+    {
+      "label": "Cross Perforating",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!C20"
+    },
+    {
+      "label": "Micro Perforating",
+      "value": "No",
+      "source_cell": "SCC Comparison!C21"
+    },
+    {
+      "label": "Custom Job Memory",
+      "value": "32",
+      "source_cell": "SCC Comparison!C22"
+    },
+    {
+      "label": "Double Sheet Detect",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!C23"
+    },
+    {
+      "label": "Bar Code Job Recognition",
+      "value": "No",
+      "source_cell": "SCC Comparison!C24"
+    },
+    {
+      "label": "9\" Color Touchscreen",
+      "value": "No",
+      "source_cell": "SCC Comparison!C25"
+    },
+    {
+      "label": "Built-in Job Creator",
+      "value": "Smart input",
+      "source_cell": "SCC Comparison!C26"
+    },
+    {
+      "label": "Warranty",
+      "value": "1 year parts and electronics",
+      "source_cell": "SCC Comparison!C27"
+    }
+  ],
+  "setup_notes": [
+    "Press margins are not specified in the workbook. Existing provisional press setup retained: 0.5 in lead, 0.25 in left/right/trail. These side margins exceed the confirmed 3 mm side-trim maximum and must be verified before a valid layout is possible. Finisher side minimum is 0; lead/trail remain provisional.",
+    "The app retains 12x18 and 13x19 stock, short-edge feeding, a 3-column limit and a provisional 30-row search limit.",
+    "Minimum finished size is interpreted as across-feed width x feed length. Paper weight, crease tooling widths/depth, sensing and speed are reference specifications, not automatic job checks.",
+    "User clarification: interchangeable middle gutter slitters allow 0 mm or 5-15 mm; side trim from each paper edge to the outer finished-card edge must be 0-3 mm, including bleed. Zero gutter requires zero bleed. Cartridge availability/increments must match installed tooling."
+  ]
+}

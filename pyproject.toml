@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gw-imposition"
+version = "0.4.0"
+description = "Deterministic rectangular imposition prototype for GW"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+desktop = ["PySide6>=6.8,<7", "PyMuPDF>=1.25,<2", "python-barcode>=0.16,<1"]
+test = ["pytest>=8", "zxing-cpp>=2.3,<4"]
+
+[project.scripts]
+gw-imposition = "gw_imposition.cli:main"
+gw-imposition-desktop = "gw_imposition.gui:main"
+
+[tool.setuptools.package-data]
+gw_imposition = ["resources/*.json", "resources/*.svg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

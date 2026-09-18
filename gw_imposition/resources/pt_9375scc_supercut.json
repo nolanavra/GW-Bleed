@@ -1,0 +1,181 @@
+{
+  "schema_version": 2,
+  "id": "pt_9375scc_supercut",
+  "version": "1.0.0",
+  "name": "PT 9375SCC Supercut",
+  "approval_state": "unverified",
+  "stocks": [
+    {
+      "id": "12x18",
+      "width_um": 304800,
+      "height_um": 457200
+    },
+    {
+      "id": "13x19",
+      "width_um": 330200,
+      "height_um": 482600,
+      "preferred": true
+    }
+  ],
+  "press_margins": {
+    "left_um": 6350,
+    "right_um": 6350,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "finisher_margins": {
+    "left_um": 6350,
+    "right_um": 6350,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "feed_edges": [
+    "short"
+  ],
+  "allow_rotation": true,
+  "minimum_gutter_um": 3175,
+  "maximum_gutter_um": 25400,
+  "gutter_increment_um": 1,
+  "max_columns": 3,
+  "max_rows": 30,
+  "allow_shared_cut": false,
+  "capabilities": {
+    "min_sheet_width_um": 209804,
+    "min_sheet_height_um": 209804,
+    "max_sheet_width_um": 369824,
+    "max_sheet_height_um": 901700,
+    "min_finished_width_um": 49784,
+    "min_finished_height_um": 48006,
+    "max_slitters": 6,
+    "crease": true,
+    "cross_perf": true,
+    "rotary_perf": true,
+    "strike_perf": true,
+    "gutter_mode": "variable",
+    "strike_optional": true,
+    "max_side_trim_um": null,
+    "barcode_reader": true
+  },
+  "source_document": "PT_SCC_Series_Specification_Comparison.xlsx | SCC Comparison!G5:G27",
+  "source_sha256": "5149bb3e323f0b5c8c887f76a7652cbf52089ff622e3dee0455c1a8a43949daa",
+  "specifications": [
+    {
+      "label": "Feed Capacity",
+      "value": "5.9\"",
+      "source_cell": "SCC Comparison!G6"
+    },
+    {
+      "label": "Feeder Type",
+      "value": "Air suction pile feeder",
+      "source_cell": "SCC Comparison!G7"
+    },
+    {
+      "label": "Input Paper Weight",
+      "value": "120–400 gsm",
+      "source_cell": "SCC Comparison!G8"
+    },
+    {
+      "label": "Input Paper Size",
+      "value": "8.26\" × 8.26\"\n(20.98 × 20.98 cm)\n14.56\" × 35.5\"\n(37 × 90 cm)\n40\" hand-fed (104 cm)",
+      "source_cell": "SCC Comparison!G9"
+    },
+    {
+      "label": "Minimum Finished Cut Size",
+      "value": "1.96\" × 1.89\"",
+      "source_cell": "SCC Comparison!G10"
+    },
+    {
+      "label": "Speed",
+      "value": "Up to 32 sheets per minute",
+      "source_cell": "SCC Comparison!G11"
+    },
+    {
+      "label": "Crease Depth Adjustment",
+      "value": "5 steps auto adjust",
+      "source_cell": "SCC Comparison!G12"
+    },
+    {
+      "label": "Crease Width Options",
+      "value": "0.4, 0.6, 1, 1.2, 1.4 mm",
+      "source_cell": "SCC Comparison!G13"
+    },
+    {
+      "label": "Crease Direction",
+      "value": "Up or down",
+      "source_cell": "SCC Comparison!G14"
+    },
+    {
+      "label": "Number of Slitters",
+      "value": "6, variable gutters",
+      "source_cell": "SCC Comparison!G15"
+    },
+    {
+      "label": "Integrated Conveyor Outfeed Option",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G16"
+    },
+    {
+      "label": "Cut Mark Image Shift Compensation",
+      "value": "Yes (lead and side)",
+      "source_cell": "SCC Comparison!G17"
+    },
+    {
+      "label": "Linear Perforating",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G18"
+    },
+    {
+      "label": "Strike Perf Option",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G19"
+    },
+    {
+      "label": "Cross Perforating",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G20"
+    },
+    {
+      "label": "Micro Perforating",
+      "value": "Yes, 24/48 TPI",
+      "source_cell": "SCC Comparison!G21"
+    },
+    {
+      "label": "Custom Job Memory",
+      "value": "64",
+      "source_cell": "SCC Comparison!G22"
+    },
+    {
+      "label": "Double Sheet Detect",
+      "value": "Yes, ultrasonic",
+      "source_cell": "SCC Comparison!G23"
+    },
+    {
+      "label": "Bar Code Job Recognition",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G24"
+    },
+    {
+      "label": "9\" Color Touchscreen",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G25"
+    },
+    {
+      "label": "Built-in Job Creator",
+      "value": "Yes",
+      "source_cell": "SCC Comparison!G26"
+    },
+    {
+      "label": "Warranty",
+      "value": "3 years parts and electronics",
+      "source_cell": "SCC Comparison!G27"
+    }
+  ],
+  "setup_notes": [
+    "Press/finisher margins are not specified in the workbook. Existing provisional setup retained: 0.5 in lead; 0.25 in left, right and trail. Registration marks use these provisional press margins.",
+    "The app retains 12x18 and 13x19 stock, short-edge feeding, a 3-column limit and a provisional 30-row search limit.",
+    "Minimum finished size is interpreted as across-feed width x feed length. Paper weight, crease tooling widths/depth, sensing and speed are reference specifications, not automatic job checks.",
+    "Variable-gutter travel limits/increments are not specified. Existing provisional 0.125-1 in range and 1 micrometre calculation increment retained.",
+    "Workbook lists 40 in hand-fed as 104 cm, which is inconsistent. The inch specification is retained as reference; long hand-fed stock is not enabled in this app.",
+    "Strike perf is an optional attachment; confirm it is installed before using strike-perf layouts. The user-defined maximum remains four tool positions."
+  ]
+}

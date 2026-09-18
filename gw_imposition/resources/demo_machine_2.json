@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "demo_scc_2",
+  "version": "0.1.2",
+  "name": "Dummy Machine 2 - demonstration only",
+  "approval_state": "demonstration",
+  "stocks": [
+    {
+      "id": "12x18",
+      "width_um": 304800,
+      "height_um": 457200
+    },
+    {
+      "id": "13x19",
+      "width_um": 330200,
+      "height_um": 482600,
+      "preferred": true
+    }
+  ],
+  "press_margins": {
+    "left_um": 6350,
+    "right_um": 6350,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "finisher_margins": {
+    "left_um": 6350,
+    "right_um": 6350,
+    "lead_um": 12700,
+    "trail_um": 6350
+  },
+  "feed_edges": [
+    "short"
+  ],
+  "allow_rotation": true,
+  "minimum_gutter_um": 3175,
+  "maximum_gutter_um": 25400,
+  "gutter_increment_um": 1,
+  "max_columns": 3,
+  "max_rows": 30,
+  "allow_shared_cut": false
+}
