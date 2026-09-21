@@ -61,7 +61,7 @@ class MachineSpecificationTests(unittest.TestCase):
     def test_interchangeable_fixed_middle_gutters(self):
         for path in list(BUNDLED_PROFILES.values())[:3]:
             p = load_profile(path)
-            self.assertEqual(p.capabilities.max_side_trim_um, 3000)
+            self.assertIsNone(p.capabilities.max_side_trim_um)
             p = replace(p, capabilities=replace(p.capabilities, max_side_trim_um=None))  # Isolate middle gutter settings.
             for gap in (5000, 6001, 15000):
                 self.assertTrue(calculate(Job(88900, 50800, gutter_um=gap), p).candidates)
@@ -86,7 +86,7 @@ class MachineSpecificationTests(unittest.TestCase):
 
     def side_profile(self, width, **changes):
         p = load_profile(BUNDLED_PROFILES["pt_33sc"])
-        defaults = dict(stocks=(Stock("side-test", width, 457200),),
+        defaults = dict(capabilities=replace(p.capabilities, max_side_trim_um=3000), stocks=(Stock("side-test", width, 457200),),
                         press_margins=Margins(0, 0, 0, 0), finisher_margins=Margins(0, 0, 0, 0))
         defaults.update(changes)
         return replace(p, **defaults)
@@ -117,6 +117,7 @@ class MachineSpecificationTests(unittest.TestCase):
     def test_provisional_margins_conflict_is_explicit_and_not_relaxed(self):
         for path in list(BUNDLED_PROFILES.values())[:3]:
             p = load_profile(path)
+            p = replace(p, capabilities=replace(p.capabilities, max_side_trim_um=3000))
             result = calculate(Job(100000, 50800, gutter_um=5000), p)
             self.assertFalse(result.candidates)
             self.assertIn("side_trim_margin_conflict", {r.code for r in result.rejections})
@@ -127,7 +128,8 @@ class MachineSpecificationTests(unittest.TestCase):
     def test_legacy_side_field_migration_and_validation(self):
         p = load_profile(BUNDLED_PROFILES["pt_33sc"])
         data = asdict(p)
-        data["capabilities"]["side_gutter_um"] = data["capabilities"].pop("max_side_trim_um")
+        data["capabilities"].pop("max_side_trim_um")
+        data["capabilities"]["side_gutter_um"] = 3000
         self.assertEqual(profile_from_data(data).capabilities.max_side_trim_um, 3000)
         for invalid in (-1, True, 1.5):
             with self.assertRaises(ValueError):

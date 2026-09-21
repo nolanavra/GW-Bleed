@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "page_numbering": "PDF page numbers, 1-based (not printed page labels)",
+  "precedence": "Confirmed model/revision manuals take precedence over workbook specifications. Unresolved mappings or conflicting revisions must not silently change profiles. Application defaults and owner conventions are separately labelled.",
+  "documents": [
+    {
+      "id": "operator_01",
+      "filename": "PT 331SC Operator Manual 2021.pdf",
+      "sha256": "7f12cdc979307497936f97aaa81607638ea8aedb940489f56336bd0c4502cbff",
+      "pages": 30,
+      "machine_ids": [
+        "pt_33sc"
+      ],
+      "mapping_status": "owner-confirmed alias: PT 331SC to PT 33SC",
+      "notes": [
+        {
+          "pages": [
+            4
+          ],
+          "topics": [
+            "sheet",
+            "slitters",
+            "cuts"
+          ],
+          "text": "Infeed 297 × 210 to 330 × 650 mm, thickness 0.15–0.35 mm, four slitters and 32 cuts. Side trim 3.2–38 mm and 8 mm gutter conflict with current owner-configured constraints; review installed tooling before changing them."
+        }
+      ]
+    },
+    {
+      "id": "operator_02",
+      "filename": "PT 331SCC Air Operator Manual 2020.pdf",
+      "sha256": "c97f89a424dafe03e15e80e88113d2dc5da26d9be7d2a39b6389739eedcbf193",
+      "pages": 39,
+      "machine_ids": [
+        "pt_331scc_air"
+      ],
+      "mapping_status": "exact cover match",
+      "notes": [
+        {
+          "pages": [
+            5
+          ],
+          "topics": [
+            "sheet"
+          ],
+          "text": "Infeed 210 × 210 to 330 × 650 mm; stock thickness 0.15–0.35 mm. Four slitters; maximum 32 cuts and 32 creases. Side-trim and gutter descriptions differ from current owner-configured profiles and require reconciliation."
+        },
+        {
+          "pages": [
+            5,
+            35
+          ],
+          "topics": [
+            "crease"
+          ],
+          "text": "Crease depth is adjusted manually according to paper thickness. The application’s numeric thickness mapping is an owner convention, not a calibration established by this manual."
+        },
+        {
+          "pages": [
+            5,
+            7
+          ],
+          "topics": [
+            "slitters"
+          ],
+          "text": "Specification table lists a 10 mm gutter; assembly descriptions list 8 mm or 3/8 inch. This internal discrepancy must be resolved for the installed tooling."
+        }
+      ]
+    },
+    {
+      "id": "operator_03",
+      "filename": "PT 331SCC Operator Manual 2020.pdf",
+      "sha256": "4e2cb05f278d64ac81443e4d03bc25de22d29efec831c146f8abf15ac0d1bf45",
+      "pages": 44,
+      "machine_ids": [
+        "pt_331scc"
+      ],
+      "mapping_status": "exact cover match",
+      "notes": [
+        {
+          "pages": [
+            5
+          ],
+          "topics": [
+            "sheet",
+            "slitters",
+            "crease"
+          ],
+          "text": "Stock thickness 0.15–0.35 mm; four slitters, 32 cuts and 32 creases. Crease-depth adjustment is manual. Infeed inch/mm equivalents conflict on this page; retain provisional bounds until resolved."
+        }
+      ]
+    },
+    {
+      "id": "operator_04",
+      "filename": "PT 335A Plus Multi Operator Manual 2023.pdf",
+      "sha256": "336ceb44b4f94eb47fc072103dc34edee9e6c4df8516fa45d829af65909d3451",
+      "pages": 37,
+      "machine_ids": [],
+      "mapping_status": "reference only; model alias unconfirmed",
+      "notes": []
+    },
+    {
+      "id": "operator_05",
+      "filename": "PT 335B Plus Multi Operator Manual 2020.pdf",
+      "sha256": "9269873e45f38b6c5ebb8f26fab1b04bcfbed48867e1230eabdfdc43a09145b3",
+      "pages": 29,
+      "machine_ids": [],
+      "mapping_status": "reference only; model alias unconfirmed",
+      "notes": []
+    },
+    {
+      "id": "operator_06",
+      "filename": "PT 335SCC Operator Manual 2020.pdf",
+      "sha256": "d276f4297f0022dcf3328b3e4e54a1687966dd430bee84e5c5122aa7e42b108e",
+      "pages": 47,
+      "machine_ids": [],
+      "mapping_status": "reference only; model alias unconfirmed",
+      "notes": []
+    },
+    {
+      "id": "operator_07",
+      "filename": "PT 335SCC-B Multi Operator Manual 2020.pdf",
+      "sha256": "0e744e7c9d5cfa1d28bf9cdec06eaff6723dd8f8865816138ce6b6a4122cd6a5",
+      "pages": 42,
+      "machine_ids": [
+        "pt_335scc_b_multi"
+      ],
+      "mapping_status": "exact cover match",
+      "notes": [
+        {
+          "pages": [
+            5
+          ],
+          "topics": [
+            "sheet",
+            "crease",
+            "slitters"
+          ],
+          "text": "Lists six slits, 32 cuts, 32 creases/perfs, 146–350 GSM and eight touchscreen depth settings. Numeric depth mapping in the application remains an owner convention. Maximum width has inconsistent inch/cm equivalents."
+        },
+        {
+          "pages": [
+            21,
+            22
+          ],
+          "topics": [
+            "registration"
+          ],
+          "text": "Cutmark reader supports a black bar or L mark. Measure cut-mark position from the leading edge. Keep the area above and to the right of the mark blank; lead placement is 3–20 mm."
+        }
+      ]
+    },
+    {
+      "id": "operator_08",
+      "filename": "PT 375BSCC Operator Manual 2020.pdf",
+      "sha256": "674962f3125732de63e67ebfb120dd49bbab7003b05c71528af0956ae3954a94",
+      "pages": 60,
+      "machine_ids": [],
+      "mapping_status": "reference only; model alias unconfirmed",
+      "notes": []
+    },
+    {
+      "id": "operator_09",
+      "filename": "PT 8336SCC Multi Operator Manual 2024.pdf",
+      "sha256": "7a640cc657600929b3f4a531efc362e07d0e9c42f28d210cd277f0e4d125a425",
+      "pages": 47,
+      "machine_ids": [
+        "pt_8336scc_multi"
+      ],
+      "mapping_status": "exact cover match",
+      "notes": [
+        {
+          "pages": [
+            4
+          ],
+          "topics": [
+            "sheet",
+            "slitters"
+          ],
+          "text": "Six programmed slitters; 32 cuts and 32 creases; 146–400 GSM. Maximum feed length is listed as both 25.6 and 40 inches and width conversions conflict. Existing limits remain provisional pending clarification."
+        },
+        {
+          "pages": [
+            21
+          ],
+          "topics": [
+            "registration"
+          ],
+          "text": "Reg slit mark measures right sheet edge to right mark edge; reg cut mark measures leading sheet edge to leading mark edge."
+        },
+        {
+          "pages": [
+            31,
+            32
+          ],
+          "topics": [
+            "barcode",
+            "registration"
+          ],
+          "text": "Code 39 uses three job digits and two quantity digits (00–99), enclosed by start/stop asterisks. Bars are 45–46 mm wide and 6.5–7 mm high. The whole barcode lies within the leading-edge band, with approximately 1 mm clearance from artwork. The stated saved-job ranges are firmware-specific and require confirmation."
+        }
+      ]
+    },
+    {
+      "id": "operator_10",
+      "filename": "PT 9375BSC Operator Manual 2024.pdf",
+      "sha256": "78b6b977afebae52f9cf85fa4b91fccf0e187a5c7b58d5bb8e45a685ab91b0d6",
+      "pages": 60,
+      "machine_ids": [
+        "pt_9375scc_supercut"
+      ],
+      "mapping_status": "owner-confirmed alias: PT 9375BSC to PT 9375SCC Supercut",
+      "notes": [
+        {
+          "pages": [
+            4
+          ],
+          "topics": [
+            "sheet",
+            "crease",
+            "slitters"
+          ],
+          "text": "Infeed 210 × 210 to 370 × 650 mm, with optional/extended length up to 900 mm; thickness 0.15–0.4 mm. Six slitters, 32 cuts and 32 creases. Eight rotary/strike assemblies are listed, but this application retains its owner-specified four strike positions. Installed configuration requires validation."
+        },
+        {
+          "pages": [
+            46,
+            49
+          ],
+          "topics": [
+            "barcode"
+          ],
+          "text": "Code 39, bars 45–46 mm wide and 6.5–7 mm high; example *15250* means job 152 and 50 sheets. Diagram shows 20 or 50 mm placement references, differing from the owner-specified 52 mm right-edge offset. Reader alignment needs physical confirmation."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+name: Windows validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: requirements-windows-cp313.hashed.lock
+      - run: python -m pip install --require-hashes -r requirements-windows-cp313.hashed.lock
+      - run: python tools/source_scan.py
+      - run: python tools/run_tests.py
+      - run: python tools/dependency_inventory.py
+      - run: python tools/source_archive.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: development-evidence
+          path: |
+            build/release-evidence
+            build/source-release
+  readiness:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python tools/release_gate.py
+  internal-alpha:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.0'
+          architecture: x64
+      - shell: pwsh
+        run: ./tools/Build-Standalone.ps1 -PythonPath (Get-Command python).Source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: internal-alpha-and-evidence
+          path: |
+            build/alpha-runs/**/*.zip
+            build/alpha-runs/**/*.sha256
+            build/alpha-runs/**/*.log
+            build/alpha-runs/**/*.json
+            build/alpha-runs/**/build/nuitka-report.xml

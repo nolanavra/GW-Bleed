@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from .finishing import FinishingOperation, FinishingMark, validate_operations
+from .accessories import MachineAccessories
 from .machine_specs import MachineCapabilities, Specification
 
 
@@ -102,8 +103,16 @@ class Job:
     shared_cut: bool = False
     bleed_y_um: int | None = None
     finishing: tuple[FinishingOperation, ...] = ()
+    finishing_rotation: int = 0
+    accessories: MachineAccessories | None = None
+    trimposer_ini: str | None = None
+    bleed_handling: str = 'keep'
 
     def __post_init__(self):
+        if self.bleed_handling not in ('keep', 'overlap', 'trim', 'crop'):
+            raise ValueError('Unknown bleed handling mode.')
+        if self.trimposer_ini is not None and (not isinstance(self.trimposer_ini, str) or len(self.trimposer_ini) > 131072):
+            raise ValueError('Invalid or oversized imported Trimposer job.')
         for name in ("width_um", "height_um"):
             positive(getattr(self, name), name)
         for name in ("bleed_um", "gutter_um"):
@@ -114,7 +123,14 @@ class Job:
         if any(not isinstance(op, FinishingOperation) for op in operations):
             raise ValueError("Invalid finishing operation.")
         object.__setattr__(self, "finishing", operations)
-        validate_operations(operations, self.width_um, self.height_um)
+        if type(self.finishing_rotation) is not int or self.finishing_rotation not in (0, 90):
+            raise ValueError('Finishing rotation must be 0 or 90 degrees.')
+        if isinstance(self.accessories, dict):
+            object.__setattr__(self, 'accessories', MachineAccessories(**self.accessories))
+        if self.accessories is not None and not isinstance(self.accessories, MachineAccessories):
+            raise ValueError('Invalid machine accessory settings.')
+        width, height = (self.height_um, self.width_um) if self.finishing_rotation else (self.width_um, self.height_um)
+        validate_operations(operations, width, height)
 
     @property
     def vertical_bleed_um(self):

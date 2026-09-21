@@ -1,24 +1,30 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "gw-imposition"
-version = "0.4.0"
-description = "Deterministic rectangular imposition prototype for GW"
+version = "0.5.0a2"
+description = "GW Bleed: open-source imposition and finishing layout desktop"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
+authors = [{name = "Graphic Whizard inc."}]
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-desktop = ["PySide6>=6.8,<7", "PyMuPDF>=1.25,<2", "python-barcode>=0.16,<1"]
-test = ["pytest>=8", "zxing-cpp>=2.3,<4"]
+desktop = ["PySide6==6.11.2", "pypdf==6.19.0", "pypdfium2==5.13.0", "Pillow==12.3.0", "python-barcode==0.16.1"]
+test = ["pytest>=8", "zxing-cpp==3.1.1", "reportlab==5.0.1"]
 
 [project.scripts]
 gw-imposition = "gw_imposition.cli:main"
-gw-imposition-desktop = "gw_imposition.gui:main"
+gw-imposition-desktop = "gw_imposition.desktop_entry:main"
 
 [tool.setuptools.package-data]
-gw_imposition = ["resources/*.json", "resources/*.svg"]
+gw_imposition = ["resources/*.json", "resources/*.svg", "resources/*.png", "resources/manuals/*.json", "resources/manuals/*.pdf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["gw_imposition*"]

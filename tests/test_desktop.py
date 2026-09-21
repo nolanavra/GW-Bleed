@@ -9,10 +9,10 @@ import time
 import unittest
 from unittest.mock import patch
 
-AVAILABLE = all(importlib.util.find_spec(name) for name in ("PySide6", "pymupdf"))
+AVAILABLE = all(importlib.util.find_spec(name) for name in ("PySide6", "pypdf", "pypdfium2", "reportlab"))
 if AVAILABLE:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    import pymupdf
+    from pdf_fixtures import FixtureDocument, overlay_operations
     from PySide6.QtWidgets import QApplication
     from gw_imposition.gui import MainWindow
     from gw_imposition.pdf_service import inspect_pdf
@@ -25,10 +25,14 @@ class DesktopTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
+        popup = patch('gw_imposition.gui.QMessageBox.warning')
+        self.warning_popup = popup.start()
+        self.addCleanup(popup.stop)
         self.window = MainWindow()
+        self.window.registration_panel.barcode_enabled.setChecked(False)
         self.temp = tempfile.TemporaryDirectory()
         path = Path(self.temp.name) / "artwork.pdf"
-        with pymupdf.open() as doc:
+        with FixtureDocument() as doc:
             doc.new_page(width=270, height=162)
             doc.save(path)
         self.window.load_pdf(path)
@@ -68,6 +72,138 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNone(w.preview.candidate)
         self.assertFalse(w.export_button.isEnabled())
 
+    def test_duplex_sources_preview_and_saved_job(self):
+        from gw_imposition.artwork import back_candidate
+        w = self.window
+        path = Path(self.temp.name)/'two-sided.pdf'
+        with FixtureDocument() as doc:
+            doc.new_page(width=270,height=162)
+            doc.new_page(width=270,height=162)
+            doc.save(path)
+        w.load_pdf(path)
+        self.wait_pdf()
+        w.back_panel.mode.setCurrentIndex(1)
+        def wait_back():
+            deadline = time.monotonic()+10
+            while w.back_panel.busy and time.monotonic()<deadline:
+                self.app.processEvents();time.sleep(.005)
+            self.assertFalse(w.back_panel.busy)
+            self.assertFalse(w.back_panel.error)
+        wait_back()
+        self.assertEqual(w.back_panel.page.currentIndex(),1)
+        w.bleed_mode.setCurrentIndex(w.bleed_mode.findData('trim'))
+        self.calculate()
+        c = w.preview.candidate
+        w.artwork_side.setCurrentText('Back')
+        self.assertEqual(w.preview.candidate,back_candidate(c,True))
+        self.assertEqual(w.job.bleed_handling,'trim')
+        saved = Path(self.temp.name)/'duplex.json'
+        with patch('gw_imposition.gui.QFileDialog.getSaveFileName',return_value=(str(saved),'')):
+            w.save_json()
+        w.back_panel.mode.setCurrentIndex(0)
+        self.assertTrue(w.load_layout(saved))
+        self.wait_pdf();wait_back();w.pool.waitForDone();self.app.processEvents()
+        self.assertIsNotNone(w.result)
+        self.assertEqual(w.back_panel.page.currentIndex(),1)
+        self.assertEqual(w.job.bleed_handling,'trim')
+        w.back_panel.mode.setCurrentIndex(2)
+        w.back_panel.load(path,0)
+        wait_back()
+        self.calculate()
+        self.assertIsNotNone(w.result)
+        destination = Path(self.temp.name)/'duplex-output.pdf'
+        self.assertTrue(w.start_pdf_export(destination,'artwork'))
+        self.wait_export()
+        from pypdf import PdfReader
+        self.assertEqual(len(PdfReader(destination).pages),2)
+        w.back_panel.load(Path(self.temp.name)/'missing-back.pdf',0)
+        deadline = time.monotonic()+10
+        while w.back_panel.busy and time.monotonic()<deadline:
+            self.app.processEvents();time.sleep(.005)
+        self.assertFalse(w.back_panel.busy)
+        self.calculate()
+        self.assertIsNone(w.result)
+        self.assertTrue(w.back_panel.error)
+
+    def test_artwork_library_assignment_undo_and_manual_size(self):
+        from PySide6.QtCore import Qt
+        w = self.window
+        original = w.pdf_path
+        path = Path(self.temp.name)/'library-pages.pdf'
+        with FixtureDocument() as doc:
+            doc.new_page(width=270,height=162)
+            doc.new_page(width=270,height=162)
+            doc.save(path)
+        library=w.artwork_library
+        library.import_files([str(path)])
+        deadline=time.monotonic()+15
+        while (library.active or library.queue) and time.monotonic()<deadline:
+            self.app.processEvents();time.sleep(.005)
+        self.assertEqual(library.pages.count(),3)
+        self.assertEqual(w.pdf_path,original)
+        w.width.setText('3.25');w.finished_size_edited()
+        for i in range(library.pages.count()):
+            if library.pages.item(i).data(Qt.ItemDataRole.UserRole)==(str(path.resolve()),1):
+                library.pages.setCurrentRow(i);break
+        library.assign(library.assign_front)
+        self.wait_pdf()
+        self.assertEqual(w.page_choice.currentIndex(),1)
+        self.assertEqual(w.width.text(),'3.25')
+        self.assertTrue(w.size_overridden)
+        w.apply_suggested_size()
+        self.assertEqual(w.width.text(),'3.5')
+        w.assign_back_page(str(original),0)
+        deadline=time.monotonic()+10
+        while w.back_panel.busy and time.monotonic()<deadline:
+            self.app.processEvents();time.sleep(.005)
+        w.swap_artwork();self.wait_pdf()
+        deadline=time.monotonic()+10
+        while w.back_panel.busy and time.monotonic()<deadline:
+            self.app.processEvents();time.sleep(.005)
+        self.assertEqual(w.pdf_path,original)
+        w.undo_assignment();self.wait_pdf()
+        deadline=time.monotonic()+10
+        while w.back_panel.busy and time.monotonic()<deadline:
+            self.app.processEvents();time.sleep(.005)
+        self.assertEqual(w.pdf_path,path)
+        self.assertEqual(w.page_choice.currentIndex(),1)
+        w.bleed_mode.setCurrentIndex(w.bleed_mode.findData('crop'))
+        self.calculate()
+        self.assertEqual(w.preview.candidate.placements,w.preview.candidate.bleed_regions)
+        self.assertEqual(len(library.snapshot()),2)
+
+    def test_trimposer_import_preserves_positions_and_rejects_bounds_transactionally(self):
+        from gw_imposition.trimposer_export import trimposer_ini
+        from gw_imposition.machine_guide import MachineSetup
+        w = self.window
+        self.calculate()
+        original = w.result.candidates[1]
+        path = Path(self.temp.name) / 'MachineParameterFile_123.ini'
+        path.write_bytes(trimposer_ini(w.job,w.profile,original,MachineSetup('.008',2,'Sample'),job_number=123))
+        self.assertTrue(w.load_trimposer(path))
+        self.assertEqual(w.preview.candidate.placements, original.placements)
+        self.assertEqual(w.preview.candidate.cuts, original.cuts)
+        self.assertTrue(w.job.trimposer_ini)
+        saved = Path(self.temp.name) / 'imported.json'
+        with patch('gw_imposition.gui.QFileDialog.getSaveFileName',return_value=(str(saved),'')):
+            w.save_json()
+        self.assertTrue(w.load_layout(saved))
+        self.wait_pdf()
+        w.pool.waitForDone()
+        self.app.processEvents()
+        self.assertEqual(w.preview.candidate.placements,original.placements)
+        previous = w.result
+        path.write_text('[MANULE_JOB_PARA]\nm_Paper_Width=NaN',encoding='utf-8')
+        self.assertFalse(w.load_trimposer(path))
+        self.assertIs(w.result,previous)
+        self.assertTrue(self.warning_popup.called)
+        w.width.setText('4')
+        self.calculate()
+        self.assertIsNone(w.result)
+        self.assertIn('exceed',w.messages.toPlainText())
+        w.clear_trimposer()
+        self.assertIsNone(w.imported_trimposer)
+
     def test_invalid_input_and_no_fit_clear_results(self):
         self.calculate()
         self.window.width.setText("abc")
@@ -78,6 +214,51 @@ class DesktopTests(unittest.TestCase):
         self.calculate()
         self.assertIn("exceed", self.window.messages.toPlainText())
         self.assertFalse(self.window.export_button.isEnabled())
+
+    def test_clean_readouts_and_notes_through_load_failure_and_retry(self):
+        empty = MainWindow()
+        try:
+            for label in (empty.pdf_label, empty.page_info, empty.bleed_info, empty.summary, empty.details):
+                self.assertEqual(label.text(), '')
+        finally:
+            empty.close()
+        w = self.window
+        self.assertEqual(w.page_info.text(), '3.750 × 2.250 in')
+        self.calculate()
+        self.assertNotIn('Bleed', w.details.text())
+        w.width.setText('3.4')
+        w.width.setText('3.5')
+        self.assertEqual(w.summary.text(), '')
+        self.assertEqual(w.details.text(), '')
+        self.assertEqual(w.messages.toPlainText(), 'Inputs changed — calculate to update the layout.')
+        self.calculate()
+        self.assertNotIn('Inputs changed', w.messages.toPlainText())
+        w.load_pdf(Path(self.temp.name) / 'missing.pdf')
+        self.assertEqual(w.page_info.text(), '')
+        self.assertEqual(w.bleed_info.text(), '')
+        self.assertIn('Loading', w.statusBar().currentMessage())
+        self.wait_pdf()
+        self.assertEqual(w.page_info.text(), '')
+        self.assertTrue(w.messages.toPlainText())
+        w.load_pdf(Path(self.temp.name) / 'artwork.pdf')
+        self.wait_pdf()
+        self.assertEqual(w.page_info.text(), '3.750 × 2.250 in')
+        self.assertEqual(w.pdf_label.text(), 'artwork.pdf')
+        self.assertEqual(w.pdf_label.toolTip(), str(Path(self.temp.name) / 'artwork.pdf'))
+
+    def test_synchronous_worker_start_failure_clears_loading(self):
+        from PySide6.QtCore import QProcess
+        failure = QProcess.ProcessError.FailedToStart
+        def fail(process, *args):
+            process.errorOccurred.emit(failure)
+        with patch.object(QProcess, 'start', fail), patch.object(QProcess, 'error', return_value=failure):
+            self.window.loader.clear_cache()
+            self.window.load_pdf(Path(self.temp.name) / 'artwork.pdf')
+            self.wait_pdf()
+        self.assertFalse(self.window.pdf_pages)
+        self.assertTrue(self.window.calculate_button.isEnabled())
+        self.assertEqual(self.window.page_info.text(), '')
+        self.assertTrue(self.window.messages.toPlainText())
 
     def test_stale_worker_result_is_discarded(self):
         w = self.window
@@ -91,7 +272,7 @@ class DesktopTests(unittest.TestCase):
     def test_pdf_page_selection_does_not_change_trim(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "sample.pdf"
-            with pymupdf.open() as doc:
+            with FixtureDocument() as doc:
                 doc.new_page(width=270, height=162)
                 doc.new_page(width=144, height=252).set_rotation(90)
                 doc.save(path)
@@ -110,9 +291,9 @@ class DesktopTests(unittest.TestCase):
     def test_password_pdf_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "locked.pdf"
-            with pymupdf.open() as doc:
+            with FixtureDocument() as doc:
                 doc.new_page()
-                doc.save(path, encryption=pymupdf.PDF_ENCRYPT_AES_256,
+                doc.save(path, encryption=True,
                          owner_pw="owner", user_pw="test")
             with self.assertRaisesRegex(ValueError, "Password-protected"):
                 inspect_pdf(path)
@@ -175,7 +356,7 @@ class DesktopTests(unittest.TestCase):
         from gw_imposition.pdf_service import render_pdf_page
         from PySide6.QtGui import QImage
         path = Path(self.temp.name) / "two-pages.pdf"
-        with pymupdf.open() as doc:
+        with FixtureDocument() as doc:
             page = doc.new_page(width=270, height=162)
             page.draw_rect(page.rect, fill=(1, 0, 0), color=None)
             page = doc.new_page(width=270, height=162)
@@ -205,7 +386,7 @@ class DesktopTests(unittest.TestCase):
         offset = c.placements[0].y_um-c.bleed_regions[0].y_um
         self.assertEqual(cuts, [offset, offset+c.placements[0].height_um])
         self.assertIn("Artwork rotation: 90°", w.details.text())
-        self.assertIn("Bottom: 0.2500 in", w.details.text())
+        self.assertIn("Bottom: 0.1250 in", w.details.text())
 
     def test_layers_preserve_zoom_pan_and_selection(self):
         w = self.window
@@ -233,7 +414,7 @@ class DesktopTests(unittest.TestCase):
 
     def make_colored_pages(self):
         path = Path(self.temp.name) / "colors.pdf"
-        with pymupdf.open() as doc:
+        with FixtureDocument() as doc:
             for color in ((1, 0, 0), (0, 0, 1)):
                 page = doc.new_page(width=270, height=162)
                 page.draw_rect(page.rect, fill=color, color=None)
@@ -276,7 +457,7 @@ class DesktopTests(unittest.TestCase):
         w.load_pdf(path)
         self.wait_pdf()
         old_signature = w.pdf_signature
-        with pymupdf.open() as doc:
+        with FixtureDocument() as doc:
             page = doc.new_page(width=288, height=180)
             page.insert_text((20, 40), "Changed source")
             doc.save(path)
@@ -292,9 +473,9 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(w.pdf_pages)
         self.assertEqual(w.width.text(), "3.5")
         self.assertIsNone(w.result)
-        with pymupdf.open() as doc:
+        with FixtureDocument() as doc:
             doc.new_page()
-            doc.save(path, encryption=pymupdf.PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="secret")
+            doc.save(path, encryption=True, owner_pw="owner", user_pw="secret")
         w.load_pdf(path)
         self.wait_pdf()
         self.assertIn("Password-protected", w.messages.toPlainText())
@@ -338,6 +519,7 @@ class DesktopTests(unittest.TestCase):
     def test_finishing_editor_preview_and_saved_layout(self):
         from gw_imposition.finishing import FinishingOperation
         from gw_imposition.units import to_um
+        self.window.accessory_panel.rotary.setValue(3)
         ops = (FinishingOperation("crease", to_um("1")),
                FinishingOperation("strike_perf", to_um("1.5"), 0, to_um("2")),
                FinishingOperation("rotary_perf", to_um("2.5")))
@@ -356,6 +538,8 @@ class DesktopTests(unittest.TestCase):
         self.app.processEvents()
         selected = w.preview.candidate
         self.assertIn("solenoids", w.messages.toPlainText())
+        self.assertEqual(w.view_mode.currentText(), "Card")
+        w.view_mode.setCurrentText("Sheet")
         marks = lambda: [i for i in w.preview.scene().items() if i.data(0) == "finishing"]
         self.assertEqual(len(marks()), len(selected.finishing))
         w.preview.zoom(1.5)
@@ -371,7 +555,7 @@ class DesktopTests(unittest.TestCase):
         path = Path(self.temp.name) / "finishing.json"
         with patch("gw_imposition.gui.QFileDialog.getSaveFileName", return_value=(str(path), "")):
             w.save_json()
-        self.assertEqual(json.loads(path.read_text())["schema_version"], 4)
+        self.assertEqual(json.loads(path.read_text())["schema_version"], 6)
         w.finishing_operations = ()
         self.assertTrue(w.load_layout(path))
         self.wait_pdf()
@@ -405,6 +589,7 @@ class DesktopTests(unittest.TestCase):
         w.pool.waitForDone()
         self.app.processEvents()
         self.assertEqual(w.job.finishing[0].position_um, 25400)
+        self.assertEqual(panel.status.text(), '')
         panel.preset.setCurrentIndex(panel.preset.findData("advanced"))
         self.assertEqual(panel.advanced.operations(), w.job.finishing)
         panel.advanced.table.cellWidget(0, 1).setValue(.75)
@@ -414,17 +599,18 @@ class DesktopTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(w.job.finishing[0].position_um, 19050)
         panel.preset.setCurrentIndex(panel.preset.findData("tent"))
+        panel.flap.setValue(.25)
         panel.apply()
         w.pool.waitForDone()
         self.app.processEvents()
-        self.assertEqual(len(w.job.finishing), 3)
-        self.assertIn("solenoids", panel.sheet_status.text())
+        self.assertEqual(len(w.job.finishing), 5)
+        self.assertNotIn("solenoids", w.messages.toPlainText())
         panel.preset.setCurrentIndex(panel.preset.findData("ticket"))
         panel.edge.setCurrentIndex(panel.edge.findData("bottom"))
         self.assertFalse(panel.apply_button.isEnabled())
         self.assertIn("Stub size", panel.status.text())
         panel.apply()
-        self.assertEqual(len(w.job.finishing), 3)
+        self.assertEqual(len(w.job.finishing), 5)
         panel.preset.setCurrentIndex(panel.preset.findData("none"))
         panel.apply()
         w.pool.waitForDone()
@@ -445,7 +631,7 @@ class DesktopTests(unittest.TestCase):
         w.pool.waitForDone()
         self.app.processEvents()
         self.assertFalse(w.result.candidates)
-        self.assertIn("maximum of 4", panel.sheet_status.text())
+        self.assertIn("maximum of 4", w.messages.toPlainText())
 
     def test_load_missing_source_can_relink(self):
         self.calculate()
@@ -513,8 +699,8 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(w.centralWidget().isEnabled())
         self.wait_export()
         self.assertTrue(w.centralWidget().isEnabled())
-        with pymupdf.open(destination) as pdf:
-            self.assertEqual(len(pdf[0].get_drawings()), len(c.cuts)+len(c.slitters)+len(w.preview.registration_marks))
+        drawings = [op for _, op in overlay_operations(destination) if op in (b'S', b'f')]
+        self.assertEqual(len(drawings), len(c.cuts)+len(c.slitters)+len(w.preview.registration_marks))
         self.assertIn(str(destination), w.statusBar().currentMessage())
 
     def test_registration_tab_preview_settings_and_saved_layout(self):
@@ -534,8 +720,8 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(w.preview.candidate, candidate)
         self.assertTrue(panel.settings().enabled)
         panel.show_preview.setChecked(True)
-        panel.length.setValue(.2)
-        panel.thickness.setValue(.03)
+        self.assertFalse(hasattr(panel, "length"))
+        self.assertFalse(hasattr(panel, "thickness"))
         self.assertEqual(w.preview.candidate, candidate)
         self.assertEqual(w.preview.transform(), transform)
         path = Path(self.temp.name) / "registration-layout.json"
@@ -580,7 +766,7 @@ class DesktopTests(unittest.TestCase):
         w.machine.addItem("Test borderless", "test_borderless")
         w.machine.setCurrentIndex(w.machine.findData("test_borderless"))
         source = Path(self.temp.name) / "four-inch.pdf"
-        with pymupdf.open() as pdf:
+        with FixtureDocument() as pdf:
             pdf.new_page(width=288, height=162)
             pdf.save(source)
         w.load_pdf(source)
@@ -599,7 +785,7 @@ class DesktopTests(unittest.TestCase):
         w.pool.waitForDone()
         self.app.processEvents()
         self.assertTrue(w.job.shared_cut)
-        self.assertEqual(w.profile.capabilities.max_side_trim_um, 3000)
+        self.assertIsNone(w.profile.capabilities.max_side_trim_um)
 
     def test_cancel_export_and_worker_failure_preserve_destination(self):
         self.calculate()
@@ -636,7 +822,9 @@ class DesktopTests(unittest.TestCase):
         self.calculate()
         panel.barcode_enabled.setChecked(True)
         self.assertFalse(w.pdf_export_button.isEnabled())
-        panel.barcode_value.setText('000123')
+        w.setup_job_number.setText('123')
+        w.card_quantity.setText('5')
+        w.table.selectRow(1)
         self.assertTrue(w.pdf_export_button.isEnabled())
         self.assertIsNotNone(w.preview.barcode)
         self.assertTrue(any(item.data(0) == 'barcode' for item in w.preview.scene().items()))
@@ -648,3 +836,98 @@ class DesktopTests(unittest.TestCase):
         w.machine.setCurrentIndex(w.machine.findData('pt_335scc_b_multi'))
         self.assertFalse(panel.settings().barcode.enabled)
         self.assertIsNone(w.preview.barcode)
+
+    def test_reader_defaults_gap_and_barcode_placement_popup(self):
+        from gw_imposition.barcodes import BarcodePlacementError
+        w = self.window
+        panel = w.registration_panel
+        w.machine.setCurrentIndex(w.machine.findData('pt_9375scc_supercut'))
+        self.assertTrue(panel.barcode_enabled.isChecked())
+        self.assertTrue(panel.machine_mark.isChecked())
+        settings = panel.settings()
+        self.assertEqual((settings.thickness_um, settings.length_um), (508, 5080))
+        self.assertEqual((settings.machine_mark_thickness_um, settings.machine_mark_length_um), (1000, 5000))
+        panel.set_artwork_bleed(0, 0)
+        self.assertEqual(panel.settings().gap_um, 1270)
+        panel.set_artwork_bleed(1000, 1000)
+        self.assertEqual(panel.settings().gap_um, 0)
+        w.setup_job_number.setText('123')
+        w.card_quantity.setText('5')
+        self.calculate()
+        self.warning_popup.reset_mock()
+        with patch('gw_imposition.gui.build_barcode', side_effect=BarcodePlacementError('No clear space')):
+            w.update_registration()
+            w.update_registration()
+        self.warning_popup.assert_called_once()
+        self.assertIn('Barcode cannot be placed', self.warning_popup.call_args.args)
+        self.assertFalse(w.pdf_export_button.isEnabled())
+
+    def test_quantity_barcode_and_view_rotation_are_independent_of_geometry(self):
+        w = self.window
+        w.machine.setCurrentIndex(w.machine.findData('pt_8336scc_multi'))
+        w.registration_panel.barcode_enabled.setChecked(True)
+        w.setup_job_number.setText('7')
+        w.card_quantity.setText('25')
+        self.calculate()
+        c = w.preview.candidate
+        sheets = (25+c.yield_per_sheet-1)//c.yield_per_sheet
+        self.assertEqual(w.sheet_quantity.text(),str(sheets))
+        self.assertEqual(w.registration_panel.settings().barcode.value,f'007{sheets:02d}')
+        self.assertTrue(w.registration_panel.barcode_value.isReadOnly())
+        self.assertFalse(hasattr(w.registration_panel,'barcode_y'))
+        self.assertFalse(hasattr(w.registration_panel,'barcode_format'))
+        w.card_quantity.setText(str(c.yield_per_sheet*100))
+        self.assertIn('99 sheets',w.registration_panel.barcode_status.text())
+        self.assertFalse(w.pdf_export_button.isEnabled())
+        w.card_quantity.setText(str(c.yield_per_sheet*99))
+        self.assertEqual(w.registration_panel.settings().barcode.value,'00799')
+        transform = w.preview.transform()
+        w.rotate_preview.click()
+        self.assertNotEqual(w.preview.transform(),transform)
+        self.assertEqual(w.preview.candidate,c)
+        rotated = w.preview.transform()
+        w.preview.set_layer('cuts',False)
+        self.assertEqual(w.preview.transform(),rotated)
+
+    def test_rotated_finishing_switches_card_and_survives_save(self):
+        w = self.window
+        panel = w.finishing_panel
+        panel.flip_orientation.click()
+        panel.preset.setCurrentIndex(panel.preset.findData('half'))
+        panel.apply()
+        w.pool.waitForDone()
+        self.app.processEvents()
+        self.assertEqual(w.view_mode.currentText(), 'Card')
+        self.assertEqual(w.job.finishing_rotation, 90)
+        self.assertTrue(all(c.rotation == 90 for c in w.result.candidates))
+        path = Path(self.temp.name) / 'rotated-finishing.json'
+        with patch('gw_imposition.gui.QFileDialog.getSaveFileName', return_value=(str(path), '')):
+            w.save_json()
+        self.assertTrue(w.load_layout(path))
+        self.wait_pdf()
+        w.pool.waitForDone()
+        self.app.processEvents()
+        self.assertEqual(w.job.finishing_rotation, 90)
+        self.assertEqual(w.job.accessories, w.accessory_panel.settings())
+
+    def test_destination_changed_during_export_is_preserved(self):
+        self.calculate()
+        destination = Path(self.temp.name) / 'changed-output.pdf'
+        destination.write_bytes(b'old')
+        self.assertTrue(self.window.start_pdf_export(destination, 'lines'))
+        destination.write_bytes(b'new external output')
+        self.wait_export()
+        self.assertEqual(destination.read_bytes(), b'new external output')
+        self.assertIn('Destination changed', self.window.messages.toPlainText())
+        self.assertFalse(list(destination.parent.glob('.gw-export-*')))
+
+    def test_export_snapshot_and_abort_preserve_job(self):
+        self.calculate()
+        destination = Path(self.temp.name) / 'timeout.pdf'
+        destination.write_bytes(b'preserved')
+        self.assertTrue(self.window.start_pdf_export(destination, 'lines'))
+        self.window.exporter.abort('Injected timeout')
+        self.wait_export()
+        self.assertEqual(destination.read_bytes(), b'preserved')
+        self.assertIn('Injected timeout', self.window.messages.toPlainText())
+        self.assertIsNotNone(self.window.result)

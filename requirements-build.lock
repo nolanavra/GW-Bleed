@@ -1,0 +1,4 @@
+# Packaging tools; C++ toolchain must be installed and recorded separately.
+setuptools==80.9.0
+wheel==0.45.1
+Nuitka==4.1.1

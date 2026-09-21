@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "pt_9375scc_supercut",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "PT 9375SCC Supercut",
   "approval_state": "unverified",
   "stocks": [
@@ -54,7 +54,9 @@
     "gutter_mode": "variable",
     "strike_optional": true,
     "max_side_trim_um": null,
-    "barcode_reader": true
+    "barcode_reader": true,
+    "min_paper_thickness_um": 150,
+    "max_paper_thickness_um": 400
   },
   "source_document": "PT_SCC_Series_Specification_Comparison.xlsx | SCC Comparison!G5:G27",
   "source_sha256": "5149bb3e323f0b5c8c887f76a7652cbf52089ff622e3dee0455c1a8a43949daa",
@@ -176,6 +178,7 @@
     "Minimum finished size is interpreted as across-feed width x feed length. Paper weight, crease tooling widths/depth, sensing and speed are reference specifications, not automatic job checks.",
     "Variable-gutter travel limits/increments are not specified. Existing provisional 0.125-1 in range and 1 micrometre calculation increment retained.",
     "Workbook lists 40 in hand-fed as 104 cm, which is inconsistent. The inch specification is retained as reference; long hand-fed stock is not enabled in this app.",
-    "Strike perf is an optional attachment; confirm it is installed before using strike-perf layouts. The user-defined maximum remains four tool positions."
+    "Strike perf is an optional attachment; confirm it is installed before using strike-perf layouts. The user-defined maximum remains four tool positions.",
+    "Stock thickness 0.15–0.4 mm: PT 9375BSC Operator Manual 2024.pdf, PDF page 4. Numeric crease-depth mapping remains an application convention, not physical calibration."
   ]
 }

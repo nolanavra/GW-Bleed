@@ -13,6 +13,36 @@ def overlap(a, b):
 
 
 class RegistrationTests(unittest.TestCase):
+    def test_dedicated_l_mark_corner_region_and_reader(self):
+        profile=load_profile()
+        c=calculate(Job(88900,50800,3175,6350),profile).recommended
+        settings=RegistrationSettings(machine_mark_enabled=True)
+        result=build_registration(c,profile,settings)
+        arms=[m.rect for m in result.marks if m.axis.startswith('machine')]
+        self.assertEqual(len(arms),2)
+        horizontal,vertical=arms
+        self.assertEqual((horizontal.width_um,horizontal.height_um),(5000,1000))
+        self.assertEqual((vertical.width_um,vertical.height_um),(1000,5000))
+        self.assertEqual(horizontal.y_um,vertical.y_um)
+        self.assertEqual(horizontal.x_um+horizontal.width_um,vertical.x_um+vertical.width_um)
+        for rect in arms:
+            self.assertGreaterEqual(rect.y_um,3000)
+            self.assertLessEqual(rect.y_um+rect.height_um,20000)
+            self.assertGreaterEqual(c.sheet_width_um-rect.x_um-rect.width_um,3000)
+            self.assertLessEqual(c.sheet_width_um-rect.x_um,20000)
+            self.assertFalse(any(overlap(rect,b) for b in c.bleed_regions))
+        no_reader=replace(profile,capabilities=replace(profile.capabilities,barcode_reader=False))
+        self.assertFalse(any(m.axis.startswith('machine') for m in build_registration(c,no_reader,settings).marks))
+        no_room=replace(profile,press_margins=Margins(0,0,21000,0))
+        result=build_registration(c,no_room,settings)
+        self.assertFalse(any(m.axis.startswith('machine') for m in result.marks))
+        self.assertIn('omitted',' '.join(result.warnings))
+
+    def test_dedicated_mark_minimum_dimensions(self):
+        for values in ({'machine_mark_thickness_um':399},{'machine_mark_length_um':4999},
+                       {'machine_mark_thickness_um':5000,'machine_mark_length_um':5000}):
+            with self.assertRaises(ValueError):RegistrationSettings(**values)
+
     def test_all_machines_stocks_rotations_marks_are_outside_artwork_and_in_waste(self):
         job = Job(to_um("3.5"), to_um("2"), to_um(".125"), to_um(".25"))
         settings = RegistrationSettings()
@@ -53,7 +83,7 @@ class RegistrationTests(unittest.TestCase):
 
     def test_all_sides_when_machine_has_room_and_clipping_when_space_is_tight(self):
         profile = replace(load_profile(), press_margins=Margins(0, 0, 0, 0))
-        c = calculate(Job(to_um("3.5"), to_um("2"), to_um(".125"), to_um(".25")), profile).recommended
+        c = calculate(Job(to_um("3.5"), to_um("2"), to_um(".125"), to_um(".25")), replace(profile, press_margins=Margins(6350,6350,6350,6350))).recommended
         result = build_registration(c, profile, RegistrationSettings())
         self.assertEqual({m.side for m in result.marks}, {"top", "bottom", "left", "right"})
         tight = replace(profile, press_margins=Margins(0, 0, 0, 6000))

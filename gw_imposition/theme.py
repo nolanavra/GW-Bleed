@@ -30,7 +30,7 @@ def dark_palette():
 STYLE = """
 QWidget { color: #E5EDF3; }
 QMainWindow { background: #121B24; }
-QWidget#finishingBody, QWidget#registrationBody { background: #121B24; }
+QWidget#finishingBody, QWidget#registrationBody, QWidget#inputBody { background: #121B24; }
 QDoubleSpinBox:disabled { color: #748593; background: #1A2631; }
 QTabWidget::pane { border: 1px solid #354A5B; }
 QTabBar::tab { background: #243543; color: #E5EDF3; padding: 8px 14px; }
@@ -68,7 +68,7 @@ QToolTip { background: #243543; color: #FFFFFF; border: 1px solid #B3D485; }
 LIGHT_STYLE = """
 QWidget { color: #173447; }
 QMainWindow { background: #F3F6F8; }
-QWidget#finishingBody, QWidget#registrationBody { background: #F3F6F8; }
+QWidget#finishingBody, QWidget#registrationBody, QWidget#inputBody { background: #F3F6F8; }
 QDoubleSpinBox:disabled { color: #81909A; background: #EDF1F3; }
 QTabWidget::pane { border: 1px solid #BCCDD8; }
 QTabBar::tab { background: #E8F1DC; color: #004B7F; padding: 8px 14px; }

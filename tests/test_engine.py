@@ -49,7 +49,7 @@ class GeometryTests(unittest.TestCase):
 
     def test_centering_rejects_asymmetric_margin_violation(self):
         result = calculate(Job(80, 100, gutter_um=1),
-                           machine(finisher_margins=Margins(15, 0, 0, 0)))
+                           machine(press_margins=Margins(15, 0, 0, 0)))
         self.assertIsNone(result.recommended)
         self.assertIn("centered_margins", {r.code for r in result.rejections})
 
@@ -92,12 +92,12 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(best.bleed_regions[-1].x_um + best.bleed_regions[-1].width_um, 100)
         self.assertEqual(best.slitter_x_um, (5, 45, 55, 95))
 
-    def test_margins_intersect_and_are_asymmetric(self):
+    def test_printing_margins_are_asymmetric_and_ignore_finisher(self):
         profile = machine(press_margins=Margins(10, 2, 4, 1),
                           finisher_margins=Margins(5, 6, 3, 8))
         best = calculate(Job(20, 20, gutter_um=2), profile).recommended
         self.assertEqual((best.usable.x_um, best.usable.y_um,
-                          best.usable.width_um, best.usable.height_um), (10, 4, 84, 188))
+                          best.usable.width_um, best.usable.height_um), (10, 4, 88, 195))
 
     def test_rotation_can_rescue_layout(self):
         job = Job(150, 80, gutter_um=1)
@@ -173,7 +173,7 @@ class GeometryTests(unittest.TestCase):
         yields = []
         for margin in range(0, 51, 5):
             result = calculate(Job(19, 29, gutter_um=2),
-                               machine(finisher_margins=Margins(margin, margin, margin, margin)))
+                               machine(press_margins=Margins(margin, margin, margin, margin)))
             yields.append(result.recommended.yield_per_sheet if result.recommended else 0)
         self.assertEqual(yields, sorted(yields, reverse=True))
 

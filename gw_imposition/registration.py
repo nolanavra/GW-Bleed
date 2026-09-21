@@ -1,16 +1,19 @@
 """Registration rectangles in printable waste outside the artwork grid."""
 from dataclasses import dataclass, field
 from .models import Rect
-from .barcodes import BarcodeSettings
+from .barcodes import BarcodeSettings, has_barcode_reader, overlaps
 
 
 @dataclass(frozen=True)
 class RegistrationSettings:
     enabled: bool = True
     thickness_um: int = 508
-    length_um: int = 3175
+    length_um: int = 5080
     gap_um: int = 0
     barcode: BarcodeSettings = field(default_factory=BarcodeSettings)
+    machine_mark_enabled: bool = False
+    machine_mark_thickness_um: int = 1000
+    machine_mark_length_um: int = 5000
 
     def __post_init__(self):
         if isinstance(self.barcode, dict):
@@ -19,6 +22,12 @@ class RegistrationSettings:
             raise ValueError("Invalid barcode settings.")
         if type(self.enabled) is not bool:
             raise ValueError("Registration marks enabled must be a boolean.")
+        if type(self.machine_mark_enabled) is not bool:
+            raise ValueError('Machine registration mark enabled must be a boolean.')
+        if type(self.machine_mark_length_um) is not int or not 5000<=self.machine_mark_length_um<=17000:
+            raise ValueError('Dedicated mark arm length must be 5–17 mm to fit the corner region.')
+        if type(self.machine_mark_thickness_um) is not int or not 400<=self.machine_mark_thickness_um<self.machine_mark_length_um:
+            raise ValueError('Dedicated mark thickness must be at least 0.4 mm and less than its arm length.')
         for name in ("thickness_um", "length_um", "gap_um"):
             value = getattr(self, name)
             if type(value) is not int or not (0 if name == "gap_um" else 1) <= value <= 254000:
@@ -107,4 +116,35 @@ def build_registration(candidate, profile, settings):
                 for side, count in missing.items() if count]
     if shortened:
         warnings.append(f"{shortened} marks shortened to fit printable margins or narrow gutters.")
+    if settings.machine_mark_enabled:
+        arm,thick = settings.machine_mark_length_um,settings.machine_mark_thickness_um
+        # A top/right corner (┐): the horizontal arm extends left and vertical
+        # arm down. Both complete rectangles must fit within the 3–20 mm band.
+        zone_left=max(c.sheet_width_um-20000,printable[0])
+        zone_right=min(c.sheet_width_um-3000,printable[2])
+        zone_top=max(3000,printable[1])
+        zone_bottom=min(20000,printable[3])
+        obstacles=[*c.bleed_regions,*(mark.rect for mark in marks)]
+        for line in (*c.cuts,*c.slitters,*c.finishing):
+            obstacles.append(Rect(line.x1_um-100,line.y1_um-100,line.x2_um-line.x1_um+200,line.y2_um-line.y1_um+200))
+        xs={zone_right-arm,zone_left}
+        ys={zone_top,zone_bottom-arm}
+        for box in obstacles:
+            xs.update((box.x_um-arm,box.x_um+box.width_um,box.x_um-thick))
+            ys.update((box.y_um-arm,box.y_um+box.height_um,box.y_um-thick))
+        chosen=None
+        if has_barcode_reader(profile):
+            for y in sorted(ys):
+                for x in sorted(xs,reverse=True):
+                    if not(zone_left<=x and x+arm<=zone_right and zone_top<=y and y+arm<=zone_bottom):
+                        continue
+                    pair=(Rect(x,y,arm,thick),Rect(x+arm-thick,y,thick,arm))
+                    if not any(overlaps(rect,box) for rect in pair for box in obstacles):
+                        chosen=pair;break
+                if chosen:break
+        if chosen:
+            marks.append(RegistrationMark('top','machine',chosen[0].y_um,chosen[0]))
+            marks.append(RegistrationMark('right','machine_vertical',chosen[1].x_um,chosen[1]))
+        else:
+            warnings.append('Dedicated L-shaped machine registration mark omitted: machine has no barcode reader or no clear printable space inside the 3–20 mm top-right corner region. Guide registration positions are unavailable.')
     return RegistrationResult(tuple(marks), tuple(warnings))

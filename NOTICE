@@ -1,0 +1,8 @@
+GW Bleed
+Copyright 2026 Graphic Whizard inc.
+
+Project-owned source code is licensed under Apache License 2.0.
+Bundled dependencies retain their own licenses. See THIRD_PARTY_NOTICES.md
+and the build-specific third-party notices included with binary releases.
+The Graphic Whizard and GW Bleed names and logos are not licensed as trademarks
+under Apache-2.0. See TRADEMARKS.md. This does not restrict code-license rights.

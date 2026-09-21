@@ -4,16 +4,20 @@ from itertools import groupby
 from .models import Rect
 
 
+class BarcodePlacementError(ValueError):
+    """A valid barcode cannot fit the selected layout."""
+
+
 @dataclass(frozen=True)
 class BarcodeSettings:
     enabled: bool = False
     value: str = ""
-    symbology: str = "code128"
+    symbology: str = "code39"
     module_um: int = 254
-    height_um: int = 3175
+    height_um: int = 6500
     automatic: bool = True
     x_um: int = 0
-    y_um: int = 0
+    y_um: int = 4000
 
     def __post_init__(self):
         if type(self.enabled) is not bool or type(self.automatic) is not bool:
@@ -40,16 +44,15 @@ def has_barcode_reader(profile):
 
 def encode_bars(settings):
     value = settings.value
-    if not value or any(ord(c) < 32 or ord(c) > 126 for c in value):
-        raise ValueError("Enter 1–64 printable ASCII characters for the barcode.")
-    if settings.symbology == "code39" and any(c not in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%" for c in value):
-        raise ValueError("Code 39 accepts uppercase letters, digits, spaces and - . $ / + %. Input is not changed automatically.")
+    if settings.symbology != 'code39':
+        raise ValueError('Machine barcodes now require Code 39. Review legacy barcode settings before export.')
+    if len(value)!=5 or not value.isascii() or not value.isdigit():
+        raise ValueError('Code 39 payload must be exactly five digits: machine job 000–999 followed by quantity 00–99. Start/stop * characters are added automatically.')
     try:
-        from barcode.codex import Code128, Code39
+        from barcode.codex import Code39
     except ImportError as exc:
         raise ValueError("Install the desktop dependencies to generate barcodes (python-barcode is missing).") from exc
-    # Code 128 includes its checksum. Code 39 uses no optional Mod-43 checksum.
-    return (Code128(value) if settings.symbology == "code128" else Code39(value, add_checksum=False)).build()[0]
+    return Code39(value, add_checksum=False).build()[0]
 
 
 def overlaps(a, b):
@@ -62,9 +65,18 @@ def build_barcode(candidate, profile, settings, registration_marks=()):
     if not has_barcode_reader(profile):
         raise ValueError("The selected machine has no barcode reader; barcode export is unavailable.")
     pattern = encode_bars(settings)
-    quiet = 10*settings.module_um
-    width = len(pattern)*settings.module_um + 2*quiet
-    height = settings.height_um+2*settings.module_um
+    if settings.height_um != 6500:
+        raise ValueError('Machine barcode bars must be 6.5 mm high; review legacy size settings.')
+    # Round cumulative positions, not individual widths, so the vector symbol
+    # spans exactly 45 mm without accumulating module-rounding drift.
+    symbol_width, symbol_height = 45000,6500
+    modules = len(pattern)
+    position = lambda i: (i*symbol_width+modules//2)//modules
+    quiet = (10*symbol_width+modules-1)//modules
+    padding = (symbol_width+modules-1)//modules
+    width = symbol_width+2*quiet
+    height = symbol_height+2*padding
+    symbol_x = candidate.sheet_width_um-52000-symbol_width
     p = profile.press_margins
     left, top, right, bottom = p.left_um, p.lead_um, candidate.sheet_width_um-p.right_um, candidate.sheet_height_um-p.trail_um
     obstacles = list(candidate.bleed_regions) + [mark.rect for mark in registration_marks]
@@ -79,25 +91,25 @@ def build_barcode(candidate, profile, settings, registration_marks=()):
 
     if settings.automatic:
         artwork_top = min(r.y_um for r in candidate.bleed_regions)
-        xs = {(left+right-width)//2, left, right-width}
-        ys = {top, artwork_top-height}
+        ys = {max(4000,top+padding), min(20000,artwork_top-symbol_height-padding)}
         for obstacle in obstacles:
-            xs.update((obstacle.x_um-width, obstacle.x_um+obstacle.width_um))
-            ys.update((obstacle.y_um-height, obstacle.y_um+obstacle.height_um))
-        boxes = (Rect(x, y, width, height) for y in sorted(ys) if top <= y and y+height <= artwork_top
-                 for x in sorted(xs, key=lambda x: abs((2*x+width)-(left+right))))
+            ys.update((obstacle.y_um-symbol_height-padding, obstacle.y_um+obstacle.height_um+padding))
+        boxes = (Rect(symbol_x-quiet, y-padding, width, height) for y in sorted(ys)
+                 if 4000<=y<=20000 and y+symbol_height+padding<=artwork_top)
         bounds = next((box for box in boxes if valid(box)), None)
         if bounds is None:
-            raise ValueError("No clear printable space above the artwork for this barcode. Choose a smaller valid size, another layout, or a manual position.")
+            raise BarcodePlacementError('No clear printable space for the fixed 45 × 6.5 mm barcode at 52 mm from the right and 4–20 mm from the leading edge. Choose another layout or review printable margins; barcode size and right position cannot be reduced or moved.')
     else:
-        bounds = Rect(settings.x_um, settings.y_um, width, height)
+        if not 4000<=settings.y_um<=20000:
+            raise ValueError('Barcode leading-edge distance must be 4–20 mm, measured to the top of the black bars.')
+        bounds = Rect(symbol_x-quiet, settings.y_um-padding, width, height)
         if not valid(bounds):
-            raise ValueError("Barcode or quiet zone overlaps artwork, registration/finishing lines, or printable margins. Adjust its position or size.")
+            raise BarcodePlacementError('Barcode or quiet zone overlaps artwork, registration/finishing lines, or printable margins. Select another valid leading-edge position or layout.')
     bars = []
-    x = bounds.x_um+quiet
+    index = 0
     for digit, group in groupby(pattern):
-        length = sum(1 for _ in group)*settings.module_um
+        end = index+sum(1 for _ in group)
         if digit == "1":
-            bars.append(Rect(x, bounds.y_um+settings.module_um, length, settings.height_um))
-        x += length
+            bars.append(Rect(symbol_x+position(index), bounds.y_um+padding, position(end)-position(index), symbol_height))
+        index = end
     return BarcodeGeometry(bounds, tuple(bars))

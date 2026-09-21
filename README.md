@@ -1,8 +1,31 @@
-# GW Bleed — phase four
+# GW Bleed — 0.5 development alpha
 
 A local Python desktop prototype for single-design rectangular repeat grids.
 The calculation engine remains dependency-free. The optional desktop interface
-uses PySide6 with read-only PDF inspection through PyMuPDF. Python 3.11+ is required.
+uses PySide6, pypdf for vector PDF composition, and PDFium for preview and appearance flattening. Python 3.11+ is required; release testing uses Python 3.13 x64.
+
+## Release status and licensing
+
+Project-owned code: Apache-2.0, copyright Graphic Whizard inc. Dependencies and
+branding have separate terms; see LICENSE, NOTICE and THIRD_PARTY_NOTICES.md.
+Official distribution/support may be paid; no activation or feature gates exist.
+This is an unvalidated development alpha. All six machines, security review,
+enterprise installers and pilot evidence are required before version 1.0.
+See [phase status](docs/release-roadmap.md) and [release checklist](docs/release-checklist.md).
+
+For a pinned Windows development environment (use `requirements-windows-cp313.hashed.lock` with `--require-hashes` for reviewed Windows x64 Python 3.13 wheel hashes):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-test.lock
+.\.venv\Scripts\python.exe tools/run_tests.py
+.\.venv\Scripts\python.exe tools/dependency_inventory.py
+```
+
+Start with `python desktop.py`; worker mode is available in source and standalone
+entry points. `tools/Build-Standalone.ps1` defines the development packaging path;
+a compiled build and clean Windows installation must be verified before publishing.
+`tools/release_gate.py` intentionally fails while external approvals are missing.
 
 ## Desktop
 
@@ -100,7 +123,7 @@ Run all tests, including desktop integration checks:
 ```
 
 Qt/PDF implementation references: [Qt graphics view](https://doc.qt.io/qtforpython-6/overviews/qtwidgets-graphicsview.html)
-and [PyMuPDF page geometry](https://pymupdf.readthedocs.io/en/latest/page.html).
+and [pypdf page transformations](https://pypdf.readthedocs.io/en/stable/user/cropping-and-transforming.html).
 
 ## Run
 
@@ -206,18 +229,16 @@ are retained as reference specifications, not automatically checked job inputs.
 
 Fixed-gutter models accept interchangeable **0 mm or 5–15 mm middle gutters**
 per the user's clarification. Enter gutter `0` for shared cuts only with zero
-PDF bleed. Side trim is constrained to **0–3 mm on each side**, measured from the paper
-edge to the outer finished-card edge, including bleed. Centered layouts exceeding
-3 mm on either side are rejected; this is not a fixed 3 mm gutter. Nonzero gutters still need room for
-both adjacent bleeds. Variable models retain the explicitly provisional previous
-0.125–1 inch range until their travel limits are supplied.
+PDF bleed. The current owner-approved development profiles have no enforced side-trim
+maximum (`max_side_trim_um=null`). The engine still supports an explicit maximum,
+including the previous 3 mm setting, when a validated configuration supplies it.
+Nonzero gutters need room for both adjacent bleeds. Variable models retain the
+provisional 0.125–1 inch range until verified travel limits are supplied.
 
 Existing press margins (0.5-inch lead and 0.25-inch on the other edges) remain
-provisional; these are not workbook specifications. Fixed-gutter machines now
-have a zero minimum finisher side margin and the separate 3 mm maximum side-trim
-constraint. Their provisional 6.35 mm press side margins conflict with this limit,
-so calculation explicitly returns no valid layout until compatible press margins
-are confirmed. The app does not silently shrink those margins or pre-trim stock.
+provisional; they are not workbook specifications. Fixed-gutter machines have
+zero minimum finisher side margins. If a custom profile imposes a 3 mm maximum,
+the provisional 6.35 mm press margins conflict and the engine rejects the layout.
 Finisher lead/trail margins and variable-machine margins remain provisional. Only the existing
 12x18/13x19 stock is offered. The 40-inch hand-fed reference has an inconsistent
 104 cm conversion in the workbook; it is preserved as reference, not enabled.
@@ -341,3 +362,31 @@ Barcode settings are saved with registration settings. Switching to a machine
 without a reader disables barcode generation. Card view omits sheet barcodes;
 hiding preview layers does not alter PDF output. Install the updated desktop
 extras to obtain python-barcode; test extras include an independent barcode decoder.
+
+
+## PDF migration and limits
+
+The current runtime and tests do not import PyMuPDF. pypdf normalizes physical
+page coordinates (including CropBox, rotation and UserUnit); PDFium renders
+previews and flattens supported appearances. Vector artwork is reused as a Form
+XObject. Visible annotations/forms without supported appearances fail explicitly;
+flatten those documents in the source application first. No whole-page raster
+fallback is used. PDF/X, color conversion and RIP fidelity certification remain
+outside current claims.
+
+Limits: 256 MiB source, 1,000 pages, 14,400-point physical page sides, 1,600-pixel
+preview, 30-second preview worker and 120-second export worker. JSON layout reads
+are bounded at 16 MiB and profile files at 1 MiB. Limits may reject complex valid
+files. Process isolation is not an OS security sandbox. Memory controls, recovery
+UX and independent security review are not yet complete.
+
+Layout writes use a same-directory temporary file and replacement. Export checks
+whether the destination changed after export started; changed destinations are
+preserved and require another export decision. Network filesystem durability and
+remaining race windows require enterprise qualification.
+
+The owner confirmed retaining the current fixed-profile side-limit override:
+`max_side_trim_um=null` on the first three profiles. This means no side maximum
+is currently enforced there, regardless of older reference notes. Profiles remain
+unverified. Imported `approved` flags are downgraded to unverified until an
+authenticated validated catalog exists.

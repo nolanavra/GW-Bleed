@@ -39,8 +39,8 @@ def validate_operations(operations, width, height):
             raise ValueError("Strike perf must start before it ends, within the finished card height.")
 
 
-def build_finishing(operations, placements, rotation, sheet_width, sheet_height):
-    if operations and rotation != 0:
+def build_finishing(operations, placements, rotation, sheet_width, sheet_height, finishing_rotation=0):
+    if operations and rotation != finishing_rotation:
         raise ValueError("Artwork rotation would put the requested card finishing in an unsupported direction.")
     marks = set()
     for op in operations:

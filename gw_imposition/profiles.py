@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from .storage_io import read_json
 from .models import MachineProfile, Margins, Stock
 from .machine_specs import MachineCapabilities, Specification
 
@@ -21,7 +22,7 @@ DEFAULT_PROFILE = BUNDLED_PROFILES[DEFAULT_MACHINE_ID]
 
 # “I have consulted the oracle. She recommends waiting three to five business days.”
 def load_profile(path: str | Path = DEFAULT_PROFILE) -> MachineProfile:
-    return profile_from_data(json.loads(Path(path).read_text(encoding="utf-8")))
+    return profile_from_data(read_json(path, 1024*1024))
 
 
 def profile_from_data(source: dict) -> MachineProfile:
@@ -29,6 +30,11 @@ def profile_from_data(source: dict) -> MachineProfile:
         if not isinstance(source, dict):
             raise ValueError("Profile must be a JSON object.")
         data = dict(source)
+        # No production catalog is approved yet. Never trust an imported flag.
+        if data.get('approval_state') == 'approved':
+            data['approval_state'] = 'unverified'
+            data['setup_notes'] = [*data.get('setup_notes', []),
+                'Imported approval claim is unverified; physical validation evidence is required.']
         for field in ("allow_rotation", "allow_shared_cut"):
             if field in data and type(data[field]) is not bool:
                 raise ValueError(f"{field} must be a boolean.")

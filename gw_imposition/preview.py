@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap, QTransform
 # “Mercury is in retrograde; the machinery has no such excuse.”
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QGraphicsItem
 from .models import Rect, Line
 
 
@@ -26,6 +26,9 @@ class SheetPreview(QGraphicsView):
         self.registration_marks = ()
         self.barcode = None
         self.show_registration = True
+        self.bleed_handling = 'keep'
+        self.source_extent = None
+        self.source_trim = None
 
     def set_barcode(self, geometry):
         self.barcode = geometry
@@ -118,14 +121,29 @@ class SheetPreview(QGraphicsView):
         for p in placements:
             rect(p, pen('#e1e5eb'), '#ffffff')
         if self.show_pdf and not self.artwork.isNull():
+            from .artwork import bleed_clips
             artwork = self.artwork.transformed(QTransform().rotate(rotation), Qt.TransformationMode.SmoothTransformation)
-            for region in bleeds:
+            clips = bleed_clips(c,self.bleed_handling) if c and self.mode == 'Sheet' else bleeds
+            if c and self.mode == 'Card' and self.bleed_handling in ('trim','crop'):
+                clipped = bleed_clips(c,self.bleed_handling)[0]
+                original = c.bleed_regions[0]
+                clips = (Rect(clipped.x_um-original.x_um,clipped.y_um-original.y_um,clipped.width_um,clipped.height_um),)
+            for placement,region,clip in zip(placements,bleeds,clips):
                 item = scene.addPixmap(artwork)
                 item.setData(0, 'artwork')
                 item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-                item.setTransform(QTransform.fromScale(region.width_um/1000/artwork.width(),
-                                                       region.height_um/1000/artwork.height()))
-                item.setPos(region.x_um/1000, region.y_um/1000)
+                ew,eh = self.source_extent or (region.width_um,region.height_um)
+                if self.source_extent and rotation == 90: ew,eh = eh,ew
+                item.setTransform(QTransform.fromScale(ew/1000/artwork.width(),eh/1000/artwork.height()))
+                if self.source_trim:
+                    tx,ty,tw,th = self.source_trim
+                    ox,oy = (ew-ty-th,tx) if rotation==90 else (tx,ty)
+                    item.setPos((placement.x_um-ox)/1000,(placement.y_um-oy)/1000)
+                else:
+                    item.setPos((region.x_um+(region.width_um-ew)/2)/1000,(region.y_um+(region.height_um-eh)/2)/1000)
+                clip_item = scene.addRect(clip.x_um/1000,clip.y_um/1000,clip.width_um/1000,clip.height_um/1000,QPen(Qt.PenStyle.NoPen))
+                clip_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemClipsChildrenToShape,True)
+                item.setParentItem(clip_item)
         if self.layers['bleed']:
             for b in bleeds:
                 rect(b, pen('#287bc1', True), tag='bleed')
@@ -177,6 +195,10 @@ class SheetPreview(QGraphicsView):
         self.auto_fit = True
         if self.scene().items():
             self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def rotate_view(self):
+        self.rotate(90)
+        self.fit_sheet()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

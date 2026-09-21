@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 from .pdf_service import PdfPageInfo
+from .desktop_entry import worker_command
 
 
 # “The circle was perfect. What entered it was not.”
@@ -54,8 +55,35 @@ class PdfLoader(QObject):
         process.setWorkingDirectory(str(Path(__file__).resolve().parent.parent))
         process.finished.connect(lambda *_: self.finished(process, token, signature))
         process.errorOccurred.connect(lambda *_: self.process_error(process, token))
-        process.start(sys.executable, ["-m", "gw_imposition.pdf_worker", str(Path(path).resolve()), str(index)])
+        process.gw_error = ''
+        process.gw_stderr = bytearray()
+        process.readyReadStandardError.connect(lambda: self.drain_stderr(process))
+        timer = QTimer(process)
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda: self.abort_worker(process, 'PDF preview exceeded the 30-second limit.'))
+        timer.start(30000)
+        process.readyReadStandardOutput.connect(lambda: self.check_output_limit(process))
+        program, arguments = worker_command('pdf', Path(path).resolve(), index)
+        # Deliver startup errors after the caller has stored this request's token.
+        # FailedToStart can be emitted synchronously by QProcess.start().
+        QTimer.singleShot(0, lambda: process.start(program, arguments) if token == self.token else process.deleteLater())
         return token
+
+    def abort_worker(self, process, message):
+        if process.state() != QProcess.ProcessState.NotRunning:
+            process.gw_error = message
+            process.kill()
+
+    def check_output_limit(self, process):
+        if process.bytesAvailable() > 24*1024*1024:
+            self.abort_worker(process, 'PDF preview worker response exceeded its size limit.')
+
+    def drain_stderr(self, process):
+        data = bytes(process.readAllStandardError())
+        if len(process.gw_stderr)+len(data) > 64*1024:
+            self.abort_worker(process, 'PDF preview diagnostics exceeded their size limit.')
+        else:
+            process.gw_stderr.extend(data)
 
     def clear_cache(self):
         self.cache.clear()
@@ -71,7 +99,7 @@ class PdfLoader(QObject):
 
     def finished(self, process, token, signature):
         raw = bytes(process.readAllStandardOutput())
-        error = bytes(process.readAllStandardError()).decode(errors="replace")
+        error = (bytes(getattr(process, "gw_stderr", b"")) + bytes(process.readAllStandardError())[:65536]).decode(errors="replace")
         process.deleteLater()
         if token != self.token:
             return
@@ -80,6 +108,8 @@ class PdfLoader(QObject):
             if source_signature(signature[0]) != signature:
                 self.clear_cache()
                 raise ValueError("PDF changed while loading. Reload the PDF.")
+            if getattr(process, 'gw_error', ''):
+                raise ValueError(process.gw_error)
             if process.exitCode() != 0:
                 raise ValueError(error.strip() or "PDF preview process failed.")
             payload = json.loads(raw)

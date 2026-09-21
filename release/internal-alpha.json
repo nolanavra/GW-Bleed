@@ -1,0 +1,25 @@
+{
+  "version": "0.5.0a2",
+  "status": "packaged-candidate-awaiting-clean-windows",
+  "artifact": "build\\alpha-runs\\20260920-074523\\GW-Bleed-0.5.0a2-windows-x64-alpha.zip",
+  "artifact_sha256": "c0d7ac0478cbfc554657249cd699b7f663c8996158d83d6f9576085822234a3d",
+  "source_snapshot": "a448878e11686ca5e0e7acc061cdbdcd6cf5a8df0e0ccc58d925526f30fbcef9",
+  "regression_tests": {
+    "passed": 135,
+    "skipped": 0
+  },
+  "packaged_workers": "passed",
+  "compiled_gui_workflow": "passed",
+  "normal_file_picker_and_calculation": "passed",
+  "relocated_and_renamed_gui_workflow": "passed",
+  "zip_integrity_and_relocation": "passed",
+  "clean_windows_11_acceptance": "pending",
+  "unsigned": true,
+  "fixes": [
+    "Workers launch the actual Windows process executable instead of the nonexistent package/python.exe.",
+    "PDF startup errors are delivered after request-token registration, preventing a stuck loading state."
+  ],
+  "supersedes": "0.5.0a1: withdrawn due to PDF-worker startup defect",
+  "additional_verification_tool": "verification-tools/alpha_build.py",
+  "executable_sha256": "77cdc2141de28f860fb27f576139c39f4508518f72490dd229583c045247b713"
+}

@@ -1,0 +1,81 @@
+{
+  "version": "0.5.0a1",
+  "release_state": "development-only",
+  "gates": {
+    "rights": {
+      "status": "approved",
+      "reviewer": "Project owner via conversation",
+      "date": "2026-09-18",
+      "evidence": [
+        "docs/release-roadmap.md"
+      ],
+      "note": "Logo/spec redistribution confirmed; packaged dependency review is separate."
+    },
+    "dependency_review": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "public_source": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "clean_windows_build": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "pdf_fidelity": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "six_machine_validation": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "security_review": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "enterprise_deployment": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "accessibility": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "three_site_pilot": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "publisher_signing": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    },
+    "support_ready": {
+      "status": "pending",
+      "reviewer": null,
+      "date": null,
+      "evidence": []
+    }
+  }
+}

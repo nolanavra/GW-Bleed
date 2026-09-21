@@ -55,6 +55,7 @@ class FinishingPanel(QScrollArea):
         self.dimensions = dimensions
         self.profile = None
         self.operations = ()
+        self.applied_rotation = 0
         self.draft_operations = ()
         self._updating = False
         self._last_preset = "none"
@@ -68,9 +69,10 @@ class FinishingPanel(QScrollArea):
         heading = QLabel("Creases and perforations")
         heading.setStyleSheet("font-size: 17px; font-weight: 600;")
         layout.addWidget(heading)
-        help_text = QLabel("Choose a common layout, then apply it to every finished card. Applying replaces the current finishing.")
-        help_text.setWordWrap(True)
-        layout.addWidget(help_text)
+        self._rotation = 0
+        self.flip_orientation = QPushButton('Flip orientation (0°)')
+        self.flip_orientation.setToolTip('Rotate finishing relative to artwork; machine tool directions remain unchanged.')
+        self.flip_orientation.clicked.connect(self.flip)
         self.preset = QComboBox()
         for key, label in PRESETS:
             self.preset.addItem(label, key)
@@ -85,25 +87,28 @@ class FinishingPanel(QScrollArea):
         self.allowance.setValue(.0625)
         self.tuck = QComboBox(); self.tuck.addItem("Bottom panel", "bottom"); self.tuck.addItem("Top panel", "top")
         self.stub = distance_input(50800)
-        self.edge = QComboBox(); self.edge.addItem("Right — rotary perf", "right"); self.edge.addItem("Bottom — cross perf", "bottom")
+        self.edge = QComboBox(); self.edge.addItem("Right", "right"); self.edge.addItem("Bottom — cross perf", "bottom")
         self.columns = QSpinBox(); self.columns.setRange(1, 10); self.columns.setValue(2)
         self.rows = QSpinBox(); self.rows.setRange(1, 10); self.rows.setValue(3)
-        self.tent_side = QComboBox()
-        self.tent_side.addItem("Both halves — top and bottom", "both")
-        self.tent_side.addItem("Center crease to bottom", "bottom")
-        self.tent_side.addItem("Top to center crease", "top")
+        self.flap = distance_input(0)
+        self.flap.setMinimum(0)
+        self.flap.setSpecialValueText('Enter flap size')
+        self.vertical_tool = QComboBox()
+        self.vertical_tool.addItem('Strike perf', 'strike_perf')
+        self.vertical_tool.addItem('Rotary perf', 'rotary_perf')
         self.fields = {}
         for key, label, field in (("allowance", "Tuck allowance (in)", self.allowance),
                 ("tuck", "Shorter tuck panel", self.tuck), ("stub", "Stub size (in)", self.stub),
                 ("edge", "Detachable edge", self.edge), ("columns", "Coupon columns", self.columns),
-                ("rows", "Coupon rows", self.rows), ("tent_side", "Strike-perf segment", self.tent_side)):
+                ("rows", "Coupon rows", self.rows), ("flap", "End-flap size (in)", self.flap),
+                ("vertical_tool", "Vertical perforation", self.vertical_tool)):
             form.addRow(label, field)
             self.fields[key] = field
             signal = field.currentIndexChanged if isinstance(field, QComboBox) else field.valueChanged
             signal.connect(self.refresh)
         self.form = form
         layout.addWidget(self.options)
-        self.advanced = AdvancedFinishingEditor(dimensions)
+        self.advanced = AdvancedFinishingEditor(self.oriented_dimensions)
         self.advanced.changed.connect(self.refresh)
         layout.addWidget(self.advanced)
         self.diagram = CardDiagram()
@@ -115,16 +120,10 @@ class FinishingPanel(QScrollArea):
         self.status = QLabel()
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+        layout.addWidget(self.flip_orientation)
         self.apply_button = QPushButton("Apply finishing")
         self.apply_button.clicked.connect(self.apply)
         layout.addWidget(self.apply_button)
-        self.sheet_status = QLabel("Calculate a sheet to check repeated tool positions and strike coverage.")
-        self.sheet_status.setWordWrap(True)
-        layout.addWidget(self.sheet_status)
-        note = QLabel("Orange dash-dot: crease. Blue dashed: perf. Sheet preview shows full tool spans. "
-                      "Finishing can limit rotation and reduce pieces per sheet.")
-        note.setWordWrap(True)
-        layout.addWidget(note)
         layout.addStretch()
         self.preset.currentIndexChanged.connect(self.preset_changed)
         self.refresh()
@@ -140,9 +139,25 @@ class FinishingPanel(QScrollArea):
         self._last_preset = key
         self.refresh()
 
-    def set_operations(self, operations):
+    def flip(self):
+        self._rotation = 90 if self._rotation == 0 else 0
+        self.flip_orientation.setText(f'Flip orientation ({self._rotation}°)')
+        self.refresh()
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    def oriented_dimensions(self):
+        width, height = self.dimensions()
+        return (height, width) if self.rotation == 90 else (width, height)
+
+    def set_operations(self, operations, rotation=0):
         self._updating = True
         self.operations = tuple(operations)
+        self.applied_rotation = rotation
+        self._rotation = rotation
+        self.flip_orientation.setText(f'Flip orientation ({rotation}°)')
         self.advanced.set_operations(operations)
         key = "advanced" if operations else "none"
         self.preset.setCurrentIndex(self.preset.findData(key))
@@ -165,8 +180,8 @@ class FinishingPanel(QScrollArea):
             return
         key = self.preset.currentData()
         self.advanced.setVisible(key == "advanced")
-        visible = {"letter": ("allowance", "tuck"), "ticket": ("stub", "edge"),
-                   "coupons": ("columns", "rows"), "tent": ("tent_side",)}.get(key, ())
+        visible = {"letter": ("allowance", "tuck"), "ticket": ("stub", "edge", "vertical_tool"),
+                   "coupons": ("columns", "rows", "vertical_tool"), "tent": ("flap",)}.get(key, ())
         for name, field in self.fields.items():
             self.form.setRowVisible(field, name in visible)
         self.options.setVisible(bool(visible))
@@ -177,18 +192,19 @@ class FinishingPanel(QScrollArea):
             "letter": "Two creases for a letter fold. The tuck panel is shorter by the allowance; the other two panels are equal.",
             "gate": "Creases at one-quarter and three-quarters of the card height. The two outer panels meet at the center.",
             "ticket": "One detachable strip. The stub size is measured inward from the selected card edge.",
-            "coupons": "Equal coupons within each finished card: cross perfs between rows and full-sheet rotary perfs between columns.",
-            "tent": "Center crease with strike perfs on the vertical centerline. Both halves perf the full card height, with gaps between repeated cards.",
+            "coupons": "Equal coupons within each finished card: cross perfs between rows and the selected vertical tool between columns.",
+            "tent": "End flap / side A / side B / end flap, with three creases. Each centerline strike perf runs from the outer cut edge halfway into its flap.",
             "advanced": "Add or edit each tool position below. Disabled start/end fields do not apply to that tool."}
         self.description.setText(descriptions[key])
         try:
-            width, height = self.dimensions()
+            width, height = self.oriented_dimensions()
             if width <= 0 or height <= 0:
                 raise ValueError("Enter positive finished card dimensions first.")
             ops = self.advanced.operations() if key == "advanced" else preset_operations(key, width, height,
                 allowance=to_um(str(self.allowance.value())), tuck=self.tuck.currentData(),
                 stub=to_um(str(self.stub.value())), edge=self.edge.currentData(),
-                columns=self.columns.value(), rows=self.rows.value(), tent_side=self.tent_side.currentData())
+                columns=self.columns.value(), rows=self.rows.value(), flap=to_um(str(self.flap.value())),
+                vertical_tool=self.vertical_tool.currentData())
             validate_operations(ops, width, height)
             validate_machine_finishing(ops, self.profile)
             self.draft_operations = ops
@@ -202,7 +218,7 @@ class FinishingPanel(QScrollArea):
                     text += f"; {inches(op.start_um)}–{inches(op.end_um)} in from top"
                 lines.append(text)
             self.summary.setText("\n".join(lines) if lines else "No finishing operations.")
-            self.status.setText("Applied to the current job." if ops == self.operations else "Not applied yet. Apply to update the sheet layout.")
+            self.status.setText("" if ops == self.operations and self.rotation == self.applied_rotation else "Not applied")
             self.apply_button.setEnabled(True)
         except ValueError as exc:
             self.draft_operations = None
@@ -216,5 +232,6 @@ class FinishingPanel(QScrollArea):
         if self.draft_operations is None:
             return
         self.operations = self.draft_operations
+        self.applied_rotation = self.rotation
         self.applied.emit(self.operations)
         self.refresh()

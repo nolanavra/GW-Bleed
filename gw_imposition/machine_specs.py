@@ -20,6 +20,8 @@ class MachineCapabilities:
     strike_optional: bool = False
     max_side_trim_um: int | None = None
     barcode_reader: bool = False
+    min_paper_thickness_um: int | None = None
+    max_paper_thickness_um: int | None = None
 
     def __post_init__(self):
         for name in ("min_sheet_width_um", "min_sheet_height_um", "max_sheet_width_um", "max_sheet_height_um",
@@ -38,6 +40,10 @@ class MachineCapabilities:
         object.__setattr__(self, "fixed_gutters_um", tuple(self.fixed_gutters_um))
         if self.max_side_trim_um is not None and (type(self.max_side_trim_um) is not int or self.max_side_trim_um < 0):
             raise ValueError("Maximum side trim must be a nonnegative integer micrometre dimension.")
+        limits = (self.min_paper_thickness_um, self.max_paper_thickness_um)
+        if limits != (None,None):
+            if any(type(v) is not int or v <= 0 for v in limits) or limits[0] >= limits[1]:
+                raise ValueError('Paper thickness limits must be positive integers with minimum below maximum.')
 
 
 @dataclass(frozen=True)

@@ -1,13 +1,14 @@
 """Repeat grids in feed coordinates: origin top-left, lead edge y=0.
 
 Gutter means trim-to-trim gap. Independent bleed requires gap >= 2*bleed.
-Press and finisher exclusions intersect (max per edge), never blindly add.
+Artwork uses printing margins; finisher exclusions do not define printable area.
 Cut positions are setup geometry, not a claim of a valid machine tool sequence.
 """
 
 from .models import Calculation, Candidate, Job, Line, MachineProfile, Rect, Rejection
 from .finishing import build_finishing
 from .machine_specs import validate_machine_finishing
+from .accessories import validate_accessories
 
 
 MAX_CANDIDATES = 50_000
@@ -15,18 +16,23 @@ MAX_PLACEMENTS = 1_000_000
 
 
 def calculate(job: Job, profile: MachineProfile) -> Calculation:
+    if job.trimposer_ini is not None:
+        from .trimposer_import import calculate_imported
+        return calculate_imported(job, profile)
     capability = profile.capabilities
     finishing_error = ""
     try:
         validate_machine_finishing(job.finishing, profile)
+        validate_accessories(job.accessories, profile)
     except ValueError as exc:
         finishing_error = str(exc)
     gap = job.gutter_um
     maximum_bleed = max(job.bleed_um, job.vertical_bleed_um)
+    if job.bleed_handling == 'crop': maximum_bleed = 0
     if job.shared_cut:
-        if not profile.allow_shared_cut or gap or maximum_bleed:
+        if not profile.allow_shared_cut or gap or (maximum_bleed and job.bleed_handling == 'keep'):
             raise ValueError("Shared cuts require profile support, zero gutter and zero bleed.")
-    elif gap < 2 * maximum_bleed:
+    elif gap < 2 * maximum_bleed and job.bleed_handling == 'keep':
         raise ValueError("Gutter must accommodate both adjacent bleeds (at least 2 x bleed).")
     elif gap == 0:
         raise ValueError("Zero gutter requires explicit shared-cut mode and profile support.")
@@ -36,9 +42,9 @@ def calculate(job: Job, profile: MachineProfile) -> Calculation:
         if (gap - profile.minimum_gutter_um) % profile.gutter_increment_um:
             raise ValueError("Gutter must equal minimum gutter plus a whole number of increments.")
 
-    press, finish = profile.press_margins, profile.finisher_margins
+    press = profile.press_margins
     left, right, lead, trail = (
-        max(getattr(press, k), getattr(finish, k))
+        getattr(press, k)
         for k in ("left_um", "right_um", "lead_um", "trail_um"))
     candidates, rejected = [], []
     placement_count = 0
@@ -65,11 +71,12 @@ def calculate(job: Job, profile: MachineProfile) -> Calculation:
                         else (job.height_um, job.width_um))
                 bx, by = ((job.bleed_um, job.vertical_bleed_um) if rotation == 0
                           else (job.vertical_bleed_um, job.bleed_um))
+                if job.bleed_handling == 'crop': bx,by = 0,0
                 side_limit = capability.max_side_trim_um if capability else None
                 if side_limit is not None and (left + bx > side_limit or right + bx > side_limit):
                     reject("side_trim_margin_conflict", f"Side trim must be 0–{side_limit/1000:g} mm per paper edge, "
                            f"but margins plus bleed require at least {(left+bx)/1000:g} mm left and {(right+bx)/1000:g} mm right. "
-                           "Review press/finisher margins and bleed; provisional margins may conflict with this machine limit.")
+                           "Review printing margins and bleed against this machine's side-trim capability.")
                     continue
                 if capability and (w < capability.min_finished_width_um or h < capability.min_finished_height_um):
                     reject("minimum_finished_size", "Finished card is below this machine's minimum across-feed width or feed length.")
@@ -101,7 +108,7 @@ def calculate(job: Job, profile: MachineProfile) -> Calculation:
                         if (origin_x < left or origin_y < lead or
                                 origin_x + grid_width > sw - right or
                                 origin_y + grid_height > sh - trail):
-                            reject("centered_margins", f"{nc} columns x {nr} rows: bottom-aligned, horizontally centered layout crosses a machine margin.")
+                            reject("centered_margins", f"{nc} columns x {nr} rows: bottom-aligned, horizontally centered layout crosses a printing margin.")
                             continue
                         count = nr * nc
                         placement_count += count
@@ -121,7 +128,8 @@ def calculate(job: Job, profile: MachineProfile) -> Calculation:
                         slitters = tuple(Line(x, 0, x, sh) for x in cuts_x)
                         cuts = tuple(Line(0, y, sw, y) for y in cuts_y)
                         try:
-                            finishing, finishing_warnings = build_finishing(job.finishing, placements, rotation, sw, sh)
+                            finishing, finishing_warnings = build_finishing(job.finishing, placements, rotation, sw, sh, job.finishing_rotation)
+                            validate_accessories(job.accessories, profile, finishing)
                         except ValueError as exc:
                             reject("finishing_rule", f"{nc} columns x {nr} rows: {exc}")
                             continue

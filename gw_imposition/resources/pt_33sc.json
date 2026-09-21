@@ -53,8 +53,10 @@
     "strike_perf": false,
     "gutter_mode": "fixed",
     "strike_optional": false,
-    "max_side_trim_um": 3000,
-    "barcode_reader": false
+    "max_side_trim_um": null,
+    "barcode_reader": false,
+    "min_paper_thickness_um": 150,
+    "max_paper_thickness_um": 350
   },
   "source_document": "PT_SCC_Series_Specification_Comparison.xlsx | SCC Comparison!B5:B27",
   "source_sha256": "5149bb3e323f0b5c8c887f76a7652cbf52089ff622e3dee0455c1a8a43949daa",
@@ -174,6 +176,7 @@
     "Press margins are not specified in the workbook. Existing provisional press setup retained: 0.5 in lead, 0.25 in left/right/trail. These side margins exceed the confirmed 3 mm side-trim maximum and must be verified before a valid layout is possible. Finisher side minimum is 0; lead/trail remain provisional.",
     "The app retains 12x18 and 13x19 stock, short-edge feeding, a 3-column limit and a provisional 30-row search limit.",
     "Minimum finished size is interpreted as across-feed width x feed length. Paper weight, crease tooling widths/depth, sensing and speed are reference specifications, not automatic job checks.",
-    "User clarification: interchangeable middle gutter slitters allow 0 mm or 5-15 mm; side trim from each paper edge to the outer finished-card edge must be 0-3 mm, including bleed. Zero gutter requires zero bleed. Cartridge availability/increments must match installed tooling."
+    "User clarification: interchangeable middle gutter slitters allow 0 mm or 5-15 mm; side trim from each paper edge to the outer finished-card edge must be 0-3 mm, including bleed. Zero gutter requires zero bleed. Cartridge availability/increments must match installed tooling.",
+    "Stock thickness 0.15–0.35 mm: PT 331SC Operator Manual 2021.pdf, PDF page 4. Numeric crease-depth mapping remains an application convention, not physical calibration."
   ]
 }

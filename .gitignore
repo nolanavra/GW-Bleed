@@ -5,3 +5,10 @@ __pycache__/
 build/
 dist/
 
+
+deployment/
+*.build/
+*.dist/
+# Local QA screenshots and sample/customer artwork are not source releases.
+/*-preview.png
+/sample/
